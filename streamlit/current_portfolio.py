@@ -2,7 +2,37 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from utils import load_and_process_data
+from datetime import datetime, date
+from utils import load_and_process_data, load_historical_data
+
+
+def filter_data_by_date(df, selected_date):
+    """Filter historical data for a specific date"""
+    try:
+        if df is None or len(df) == 0:
+            return None
+        
+        # Extract date only for filtering
+        df['date_only'] = df['timestamp'].dt.date
+        
+        # Filter by selected date
+        filtered_df = df[df['date_only'] == selected_date]
+        
+        if len(filtered_df) == 0:
+            return None
+        
+        # If multiple entries for the same date, take the latest timestamp
+        latest_timestamp = filtered_df['timestamp'].max()
+        final_df = filtered_df[filtered_df['timestamp'] == latest_timestamp].copy()
+        
+        # Remove the temporary date_only column
+        final_df = final_df.drop('date_only', axis=1)
+        
+        return final_df
+        
+    except Exception as e:
+        st.error(f"❌ Error filtering data by date: {str(e)}")
+        return None
 
 
 def create_overview_metrics(df):
@@ -214,8 +244,11 @@ def create_detailed_table(df):
         'protocol', 'amount', 'price', 'usd_value'
     ]
 
+    # Only show columns that exist in the dataframe
+    available_columns = [col for col in display_columns if col in filtered_df.columns]
+
     st.dataframe(
-        filtered_df[display_columns],
+        filtered_df[available_columns],
         use_container_width=True,
         hide_index=True
     )
@@ -225,25 +258,39 @@ def create_detailed_table(df):
 
 
 def current_portfolio_page():
-    """Current portfolio analysis page"""
+    """Current portfolio analysis page with date selection"""
     st.title("💰 Crypto Portfolio Dashboard")
     st.markdown("---")
 
-    # Sidebar for file upload
-    st.sidebar.header("📂 Data Upload")
-    uploaded_file = st.sidebar.file_uploader(
-        "Upload your portfolio CSV file",
-        type=['csv'],
-        help="Upload the ALL_WALLETS_COMBINED CSV file",
-        key="current_portfolio_upload"
+    # Sidebar for date selection
+    st.sidebar.header("📅 Date Selection")
+    
+    # Date picker with default to today
+    selected_date = st.sidebar.date_input(
+        "Select Portfolio Date",
+        value=date.today(),
+        help="Choose the date for which you want to view portfolio data",
+        key="portfolio_date_picker"
     )
 
-    if uploaded_file is not None:
-        # Load and process data
-        df = load_and_process_data(uploaded_file)
+    # Display selected date info
+    st.sidebar.info(f"Selected Date: {selected_date.strftime('%B %d, %Y')}")
 
-        if df is not None:
-            st.success(f"✅ Successfully loaded {len(df)} portfolio positions")
+    # Load historical data using utils function
+    with st.spinner(f"Loading portfolio data for {selected_date}..."):
+        # Load all historical data using utils function
+        full_df = load_historical_data()
+        
+        # Filter for the selected date
+        df = filter_data_by_date(full_df, selected_date) if full_df is not None else None
+
+    if df is not None:
+            st.success(f"✅ Successfully loaded {len(df)} portfolio positions for {selected_date}")
+
+            # Show data timestamp info
+            if 'timestamp' in df.columns:
+                latest_timestamp = df['timestamp'].max()
+                st.info(f"📊 Data timestamp: {latest_timestamp}")
 
             # Overview metrics
             st.header("📊 Portfolio Overview")
@@ -316,26 +363,72 @@ def current_portfolio_page():
                 f"${top_blockchain_value:,.2f}"
             )
 
+            # Available date range info
+            st.sidebar.markdown("---")
+            st.sidebar.header("📊 Data Info")
+            st.sidebar.write(f"Records loaded: {len(df)}")
+            if 'timestamp' in df.columns:
+                st.sidebar.write(f"Latest update: {df['timestamp'].max()}")
+            
+            # Show available date range from full dataset
+            if full_df is not None and len(full_df) > 0:
+                min_date = full_df['timestamp'].min().date()
+                max_date = full_df['timestamp'].max().date()
+                available_dates = len(full_df['timestamp'].dt.date.unique())
+                st.sidebar.write(f"Available range: {min_date} to {max_date}")
+                st.sidebar.write(f"Total dates: {available_dates}")
+
     else:
-        st.info("👆 Please upload your portfolio CSV file using the sidebar to get started!")
+        st.warning(f"⚠️ No portfolio data found for {selected_date}")
+        
+        # Show data requirements
+        st.subheader("📋 Data Requirements")
+        st.write("To use this dashboard, ensure you have:")
+        
+        st.markdown("""
+        1. **ALL_PORTFOLIOS_HISTORY.csv** file in the `portfolio_data/` directory
+        2. The file should contain columns like:
+           - `source_file_timestamp` (for date filtering)
+           - `wallet_label` (wallet identifier)
+           - `blockchain` (blockchain name)
+           - `coin` (token symbol)
+           - `protocol` (protocol/platform name)
+           - `amount` (token amount)
+           - `price` (token price)
+           - `usd_value` (USD value)
+           - `token_name` (full token name)
+        3. Data for the selected date exists in the file
+        """)
+        
+        # Suggest trying different dates
+        st.info("💡 Try selecting a different date or check if your historical data file contains records for the selected date.")
 
-        # Show example of expected file format
-        st.subheader("📋 Expected File Format")
-        st.write("Your CSV file should contain the following columns:")
+        # Show available date range if we have partial data
+        if full_df is not None and len(full_df) > 0:
+            min_date = full_df['timestamp'].min().date()
+            max_date = full_df['timestamp'].max().date()
+            st.info(f"📅 Available data range: {min_date} to {max_date}")
+            
+            # Show sample of available dates
+            available_dates = full_df['timestamp'].dt.date.unique()
+            st.write(f"Total dates with data: {len(available_dates)}")
+        else:
+            st.error("❌ Could not load any historical data. Please check if the file exists in the correct location.")
 
-        example_data = {
-            'wallet_label': ['Main_Wallet', 'DeFi_Wallet'],
-            'address': ['0x1234...', '0x5678...'],
-            'blockchain': ['ETHEREUM', 'POLYGON'],
-            'coin': ['ETH', 'MATIC'],
-            'protocol': ['Wallet', 'Uniswap V3'],
-            'price': ['$2,500.00', '$0.85'],
-            'amount': ['1.5000', '1000.0000'],
-            'usd_value': ['$3,750.00', '$850.00'],
-            'token_name': ['Ethereum', 'Polygon'],
-            'is_verified': ['True', 'True'],
-            'logo_url': ['https://...', 'https://...']
-        }
-
-        example_df = pd.DataFrame(example_data)
-        st.dataframe(example_df, use_container_width=True)
+    # Quick date navigation
+    st.sidebar.markdown("---")
+    st.sidebar.header("⚡ Quick Navigation")
+    
+    col1, col2 = st.sidebar.columns(2)
+    with col1:
+        if st.button("Yesterday", key="yesterday_btn"):
+            # This will trigger a rerun with yesterday's date
+            yesterday = date.today() - pd.Timedelta(days=1)
+            st.session_state.portfolio_date_picker = yesterday.date()
+            st.rerun()
+    
+    with col2:
+        if st.button("Today", key="today_btn"):
+            # This will trigger a rerun with today's date
+            st.session_state.portfolio_date_picker = date.today()
+            st.rerun()
