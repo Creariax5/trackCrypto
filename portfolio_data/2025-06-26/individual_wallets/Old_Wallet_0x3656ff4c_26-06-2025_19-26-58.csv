@@ -1,0 +1,8 @@
+wallet_label,address,blockchain,coin,protocol,price,amount,usd_value,token_name,is_verified,logo_url
+Old_Wallet,0x3656ff4c11c4c8b4b77402faab8b3387e36f2e77,ARB,ETH,Wallet,"$2,423.04",0.000004,$0.01,ETH,True,https://static.debank.com/image/coin/logo_url/eth/6443cdccced33e204d90cb723c632917.png
+Old_Wallet,0x3656ff4c11c4c8b4b77402faab8b3387e36f2e77,SONIC,wS,Wallet,$0.30,0.027581,$0.01,Wrapped Sonic,True,https://static.debank.com/image/sonic_token/logo_url/0x039e2fb66102314ce7b64ce5ce3e5183bc94ad38/c4faf4a1f3192ee5dc3184879182d7e3.png
+Old_Wallet,0x3656ff4c11c4c8b4b77402faab8b3387e36f2e77,SONIC,x33,Wallet,$26.05,0.000331,$0.01,Shadow Liquid Staking Token,True,https://static.debank.com/image/sonic_token/logo_url/0x3333111a391cc08fa51353e9195526a70b333333/9ae56fcfd53c88cef83625c49b8ade30.png
+Old_Wallet,0x3656ff4c11c4c8b4b77402faab8b3387e36f2e77,SONIC,S,Wallet,$0.30,0.004545,$0.00,S,True,https://static.debank.com/image/sonic_token/logo_url/sonic/17d88e82ee2f7243922c0f2d3de580ce.png
+Old_Wallet,0x3656ff4c11c4c8b4b77402faab8b3387e36f2e77,SONIC,wS,Merkl (Rewards),$0.30,0.002559,$0.00,Wrapped Sonic,True,https://static.debank.com/image/sonic_token/logo_url/0x039e2fb66102314ce7b64ce5ce3e5183bc94ad38/c4faf4a1f3192ee5dc3184879182d7e3.png
+Old_Wallet,0x3656ff4c11c4c8b4b77402faab8b3387e36f2e77,SONIC,LBTC,Rings (Yield),"$107,285.54",0.000000,$0.00,Lombard Staked Bitcoin,False,https://static.debank.com/image/corn_token/logo_url/0xecac9c5f704e954931349da37f60e39f515c11c1/fb1b1e3acbf982e46618edc9e4fa09b7.png
+Old_Wallet,0x3656ff4c11c4c8b4b77402faab8b3387e36f2e77,SONIC,USDC,Shadow Exchange (Rewards),$1.00,0.011767,$0.01,USDC,True,https://static.debank.com/image/coin/logo_url/usdc/e87790bfe0b3f2ea855dc29069b38818.png
