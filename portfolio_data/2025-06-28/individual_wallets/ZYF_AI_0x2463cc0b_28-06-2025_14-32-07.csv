@@ -1,6 +1,0 @@
-wallet_label,address,blockchain,coin,protocol,price,amount,usd_value,token_name,is_verified,logo_url
-ZYF_AI,0x2463cc0b87dfc7d563b5f4fee294c49fe0603c62,SONIC,USDC,Wallet,$1.00,0.000002,$0.00,USDC,True,https://static.debank.com/image/coin/logo_url/usdc/e87790bfe0b3f2ea855dc29069b38818.png
-ZYF_AI,0x2463cc0b87dfc7d563b5f4fee294c49fe0603c62,BASE,USDC,Morpho (Yield),$1.00,200.521721,$200.44,USD Coin,True,https://static.debank.com/image/eth_token/logo_url/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48/fffcd27b9efff5a86ab942084c05924d.png
-ZYF_AI,0x2463cc0b87dfc7d563b5f4fee294c49fe0603c62,SONIC,SILO,Silo (Rewards),$0.04,1.339874,$0.06,Silo Token,False,https://static.debank.com/image/project/logo_url/arb_silo/70cd780f68c001aa0d9543d596db5601.png
-ZYF_AI,0x2463cc0b87dfc7d563b5f4fee294c49fe0603c62,SONIC,SILO,Silo (Rewards),$0.04,1.737108,$0.07,Silo Token,False,https://static.debank.com/image/project/logo_url/arb_silo/70cd780f68c001aa0d9543d596db5601.png
-ZYF_AI,0x2463cc0b87dfc7d563b5f4fee294c49fe0603c62,SONIC,USDC,Silo (Yield),$1.00,254.491077,$254.39,USDC,True,https://static.debank.com/image/coin/logo_url/usdc/e87790bfe0b3f2ea855dc29069b38818.png

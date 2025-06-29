@@ -1,6 +1,0 @@
-wallet_label,address,status,total_value,wallet_value,defi_value,token_count,project_count,method
-Old_Wallet,0x3656ff4c11c4c8b4b77402faab8b3387e36f2e77,Success,$0.04,$0.03,$0.02,4,3,browserless
-Main_Wallet,0x5a2ccb5b0a4dc5b7ca9c0768e6e2082be7bc6229,Success,$667.13,$566.70,$100.44,6,1,browserless
-Coinbase_Wallet,0x29ea4918b83223f1eec45f242d2d96a293b2fcf3,Success,$919.87,$31.28,$888.58,9,1,browserless
-Sonic_Farm,0x7ab7528984690d3d8066bac18f38133a0cfba053,Success,$7.64,$2.23,$5.42,8,2,browserless
-ZYF_AI,0x2463cc0b87dfc7d563b5f4fee294c49fe0603c62,Success,$454.82,$0.00,$454.82,1,2,browserless
