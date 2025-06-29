@@ -1,9 +1,0 @@
-wallet_label,address,blockchain,coin,protocol,price,amount,usd_value,token_name,is_verified,logo_url
-Main_Wallet,0x5a2ccb5b0a4dc5b7ca9c0768e6e2082be7bc6229,ARB,ETH,Wallet,"$2,425.33",0.000436,$1.06,ETH,True,https://static.debank.com/image/coin/logo_url/eth/6443cdccced33e204d90cb723c632917.png
-Main_Wallet,0x5a2ccb5b0a4dc5b7ca9c0768e6e2082be7bc6229,BSC,BTCB,Wallet,"$107,292.45",0.000582,$62.47,BTCB Token,True,https://static.debank.com/image/bsc_token/logo_url/0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c/6f9302fa889419e4ce8745931d2e19bf.png
-Main_Wallet,0x5a2ccb5b0a4dc5b7ca9c0768e6e2082be7bc6229,BSC,BNB,Wallet,$646.50,0.044813,$28.97,BNB,True,https://static.debank.com/image/coin/logo_url/bnb/9784283a36f23a58982fc964574ea530.png
-Main_Wallet,0x5a2ccb5b0a4dc5b7ca9c0768e6e2082be7bc6229,ETH,ETH,Wallet,"$2,425.33",0.018736,$45.44,ETH,True,https://static.debank.com/image/coin/logo_url/eth/6443cdccced33e204d90cb723c632917.png
-Main_Wallet,0x5a2ccb5b0a4dc5b7ca9c0768e6e2082be7bc6229,BASE,ETH,Wallet,"$2,425.33",0.000215,$0.52,ETH,True,https://static.debank.com/image/coin/logo_url/eth/6443cdccced33e204d90cb723c632917.png
-Main_Wallet,0x5a2ccb5b0a4dc5b7ca9c0768e6e2082be7bc6229,BASE,USDC,Peapods Finance V2 (Lending),$1.00,428.535991,$428.36,USD Coin,True,https://static.debank.com/image/eth_token/logo_url/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48/fffcd27b9efff5a86ab942084c05924d.png
-Main_Wallet,0x5a2ccb5b0a4dc5b7ca9c0768e6e2082be7bc6229,ETH,USDC,Notional (Lending),$1.00,100.018609,$99.98,USD Coin,True,https://static.debank.com/image/eth_token/logo_url/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48/fffcd27b9efff5a86ab942084c05924d.png
-Main_Wallet,0x5a2ccb5b0a4dc5b7ca9c0768e6e2082be7bc6229,ETH,NOTE,Notional (Lending),$0.02,23.912740,$0.55,Notional,True,https://static.debank.com/image/eth_token/logo_url/0xcfeaead4947f0705a14ec42ac3d44129e1ef3ed5/ebf0bbcfaf39b581a04aacbc502101a4.png
