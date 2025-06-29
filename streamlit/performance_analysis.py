@@ -6,6 +6,59 @@ import numpy as np
 from datetime import timedelta
 
 
+def merge_similar_assets(df, merge_enabled=False):
+    """Merge assets with same base name (removing parentheses) when enabled"""
+    if not merge_enabled:
+        return df
+    
+    df_copy = df.copy()
+    
+    # Create base name by removing parentheses content
+    # Use regex=False to treat the pattern as literal string
+    df_copy['coin_base'] = df_copy['coin'].str.split(' (', regex=False).str[0]
+    
+    # If protocol column exists, do the same for protocols
+    if 'protocol' in df_copy.columns:
+        df_copy['protocol_base'] = df_copy['protocol'].str.split(' (', regex=False).str[0]
+    
+    # Group by timestamp, base coin name, and base protocol name (if exists)
+    group_cols = ['timestamp', 'coin_base']
+    if 'protocol' in df_copy.columns:
+        group_cols.append('protocol_base')
+    
+    # Aggregate the data
+    agg_dict = {
+        'usd_value_numeric': 'sum',
+        'coin': 'first',  # Keep the first coin name as reference
+    }
+    
+    if 'protocol' in df_copy.columns:
+        agg_dict['protocol'] = 'first'
+    
+    # Add any other numeric columns that should be summed
+    numeric_cols = df_copy.select_dtypes(include=[np.number]).columns
+    for col in numeric_cols:
+        if col != 'usd_value_numeric' and col not in agg_dict:
+            agg_dict[col] = 'sum'
+    
+    # Add any other columns that should be kept
+    for col in df_copy.columns:
+        if col not in group_cols and col not in agg_dict and col not in ['coin_base', 'protocol_base']:
+            agg_dict[col] = 'first'
+    
+    merged_df = df_copy.groupby(group_cols).agg(agg_dict).reset_index()
+    
+    # Replace the original names with base names
+    merged_df['coin'] = merged_df['coin_base']
+    if 'protocol' in merged_df.columns and 'protocol_base' in merged_df.columns:
+        merged_df['protocol'] = merged_df['protocol_base']
+    
+    # Clean up temporary columns
+    merged_df = merged_df.drop(columns=[col for col in ['coin_base', 'protocol_base'] if col in merged_df.columns])
+    
+    return merged_df
+
+
 def get_top_assets_by_value(df, top_n=10):
     """Get top N assets by current portfolio value"""
     current_time = df['timestamp'].max()
@@ -257,6 +310,18 @@ def simplified_performance_analysis(historical_df):
     """Simplified performance analysis with asset and protocol comparison"""
     
     st.header("📊 Performance Comparison")
+    
+    # Merge similar assets checkbox
+    merge_assets = st.checkbox(
+        "🔄 Merge similar assets",
+        value=False,
+        help="Combine assets with same base name by removing parentheses content. Example: 'silo (yield)' + 'silo (reward)' = 'silo'"
+    )
+    
+    # Apply merging if enabled
+    if merge_assets:
+        historical_df = merge_similar_assets(historical_df, merge_enabled=True)
+        st.info("✅ Similar assets merged by base name")
     
     # Main analysis type selector
     analysis_type = st.selectbox(
