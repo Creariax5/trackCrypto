@@ -165,6 +165,138 @@ def get_top_performing_protocols(df, period_days=30, top_n=10):
     return []
 
 
+def calculate_apr_data(df, selected_items, period_days, analysis_type):
+    """Calculate APR and summary data for selected assets or protocols"""
+    current_time = df['timestamp'].max()
+    period_start = current_time - timedelta(days=period_days)
+    filtered_df = df[df['timestamp'] >= period_start]
+    
+    apr_data = []
+    total_start_value = 0
+    total_end_value = 0
+    
+    item_col = 'coin' if analysis_type == 'assets' else 'protocol'
+    
+    for item in selected_items:
+        if analysis_type == 'protocols' and pd.isna(item):
+            continue
+            
+        item_data = filtered_df[filtered_df[item_col] == item]
+        if len(item_data) == 0:
+            continue
+            
+        # Group by timestamp and sum values
+        item_timeline = item_data.groupby('timestamp')['usd_value_numeric'].sum().reset_index()
+        item_timeline = item_timeline.sort_values('timestamp')
+        
+        if len(item_timeline) >= 2:
+            start_value = item_timeline['usd_value_numeric'].iloc[0]
+            end_value = item_timeline['usd_value_numeric'].iloc[-1]
+            
+            # Calculate period return
+            if start_value > 0:
+                period_return = ((end_value / start_value) - 1) * 100
+                # Calculate APR (annualized)
+                apr = (((end_value / start_value) ** (365 / period_days)) - 1) * 100
+            else:
+                period_return = 0
+                apr = 0
+            
+            apr_data.append({
+                'Item': item,
+                'Start Value ($)': start_value,
+                'End Value ($)': end_value,
+                f'{period_days}d Return (%)': period_return,
+                'APR (%)': apr
+            })
+            
+            total_start_value += start_value
+            total_end_value += end_value
+    
+    # Calculate total portfolio APR
+    if total_start_value > 0:
+        total_period_return = ((total_end_value / total_start_value) - 1) * 100
+        total_apr = (((total_end_value / total_start_value) ** (365 / period_days)) - 1) * 100
+    else:
+        total_period_return = 0
+        total_apr = 0
+    
+    return apr_data, total_start_value, total_end_value, total_period_return, total_apr
+
+
+def create_apr_summary_table(apr_data, total_start_value, total_end_value, total_period_return, total_apr, period_days, analysis_type):
+    """Create and display APR summary table"""
+    if not apr_data:
+        st.warning("No APR data available for the selected items.")
+        return
+    
+    # Create DataFrame
+    apr_df = pd.DataFrame(apr_data)
+    
+    # Format the DataFrame for display
+    apr_df_display = apr_df.copy()
+    apr_df_display['Start Value ($)'] = apr_df_display['Start Value ($)'].apply(lambda x: f"${x:,.2f}")
+    apr_df_display['End Value ($)'] = apr_df_display['End Value ($)'].apply(lambda x: f"${x:,.2f}")
+    apr_df_display[f'{period_days}d Return (%)'] = apr_df_display[f'{period_days}d Return (%)'].apply(lambda x: f"{x:+.2f}%")
+    apr_df_display['APR (%)'] = apr_df_display['APR (%)'].apply(lambda x: f"{x:+.2f}%")
+    
+    # Display the table
+    item_type = "Assets" if analysis_type == "assets" else "Protocols"
+    st.subheader(f"📊 APR Summary - {item_type}")
+    
+    st.dataframe(
+        apr_df_display,
+        use_container_width=True,
+        hide_index=True
+    )
+    
+    # Display total summary
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            "Total Start Value",
+            f"${total_start_value:,.2f}"
+        )
+    
+    with col2:
+        st.metric(
+            "Total End Value",
+            f"${total_end_value:,.2f}"
+        )
+    
+    with col3:
+        st.metric(
+            f"{period_days}d Return",
+            f"{total_period_return:+.2f}%"
+        )
+    
+    with col4:
+        st.metric(
+            "Total APR",
+            f"{total_apr:+.2f}%"
+        )
+    
+    # Additional insights
+    st.markdown("---")
+    st.markdown("**📈 Key Insights:**")
+    
+    if apr_data:
+        # Find best and worst performers
+        best_performer = max(apr_data, key=lambda x: x['APR (%)'])
+        worst_performer = min(apr_data, key=lambda x: x['APR (%)'])
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.success(f"🏆 **Best Performer:** {best_performer['Item']} ({best_performer['APR (%)']:+.2f}% APR)")
+        
+        with col2:
+            if worst_performer['APR (%)'] < 0:
+                st.error(f"📉 **Worst Performer:** {worst_performer['Item']} ({worst_performer['APR (%)']:+.2f}% APR)")
+            else:
+                st.info(f"📊 **Lowest Performer:** {worst_performer['Item']} ({worst_performer['APR (%)']:+.2f}% APR)")
+
+
 def create_asset_performance_comparison(df, selected_assets, period_days=30):
     """Create simplified asset performance comparison chart"""
     if not selected_assets:
@@ -314,7 +446,7 @@ def simplified_performance_analysis(historical_df):
     # Merge similar assets checkbox
     merge_assets = st.checkbox(
         "🔄 Merge similar assets",
-        value=False,
+        value=True,
         help="Combine assets with same base name by removing parentheses content. Example: 'silo (yield)' + 'silo (reward)' = 'silo'"
     )
     
@@ -436,6 +568,21 @@ def simplified_performance_analysis(historical_df):
         st.plotly_chart(chart, use_container_width=True)
     elif selected_items:
         st.warning("No data available for the selected items and period.")
+    
+    # Add APR Summary Table after the chart
+    if selected_items:
+        st.markdown("---")
+        
+        # Calculate APR data
+        apr_data, total_start_value, total_end_value, total_period_return, total_apr = calculate_apr_data(
+            historical_df, selected_items, analysis_period, analysis_type
+        )
+        
+        # Display APR summary table
+        create_apr_summary_table(
+            apr_data, total_start_value, total_end_value, 
+            total_period_return, total_apr, analysis_period, analysis_type
+        )
 
 
 # Main function to integrate into your app
