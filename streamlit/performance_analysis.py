@@ -4,6 +4,241 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 from datetime import timedelta
+import json
+import os
+import glob
+
+
+def get_available_configs():
+    """Get list of available configuration files from config folder"""
+    config_folder = "config"
+    
+    # Create config folder if it doesn't exist
+    if not os.path.exists(config_folder):
+        os.makedirs(config_folder)
+        st.info(f"📁 Created {config_folder} folder. Add your JSON configuration files there.")
+        return []
+    
+    # Get all JSON files in config folder
+    json_files = glob.glob(os.path.join(config_folder, "*.json"))
+    
+    configs = []
+    for file_path in json_files:
+        try:
+            with open(file_path, 'r') as f:
+                config_data = json.load(f)
+                config_name = config_data.get('name', os.path.basename(file_path))
+                config_description = config_data.get('description', 'No description available')
+                
+                configs.append({
+                    'file_path': file_path,
+                    'file_name': os.path.basename(file_path),
+                    'display_name': config_name,
+                    'description': config_description,
+                    'data': config_data
+                })
+        except Exception as e:
+            st.warning(f"Error reading {file_path}: {e}")
+    
+    return configs
+
+
+def load_selected_config(selected_config_file):
+    """Load the selected configuration file"""
+    try:
+        config_folder = "config"
+        file_path = os.path.join(config_folder, selected_config_file)
+        
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                return json.load(f)
+        else:
+            st.error(f"Configuration file {selected_config_file} not found")
+            return get_default_config()
+            
+    except Exception as e:
+        st.error(f"Error loading configuration: {e}")
+        return get_default_config()
+
+
+def get_default_config():
+    """Return default empty configuration"""
+    return {
+        "name": "Empty Configuration",
+        "description": "No combinations or renames applied",
+        "asset_combinations": {},
+        "asset_renames": {},
+        "protocol_combinations": {},
+        "protocol_renames": {}
+    }
+
+
+def save_config_to_file(config_data, filename):
+    """Save configuration data to a file in config folder"""
+    config_folder = "config"
+    
+    # Create config folder if it doesn't exist
+    if not os.path.exists(config_folder):
+        os.makedirs(config_folder)
+    
+    file_path = os.path.join(config_folder, filename)
+    
+    try:
+        with open(file_path, 'w') as f:
+            json.dump(config_data, f, indent=2)
+        return True
+    except Exception as e:
+        st.error(f"Error saving configuration: {e}")
+        return False
+
+
+def create_config_management_ui():
+    """Create UI for managing configurations"""
+    st.subheader("⚙️ Configuration Management")
+    
+    # Get available configurations
+    available_configs = get_available_configs()
+    
+    if not available_configs:
+        st.warning("📂 No configuration files found in the config folder.")
+        st.info("💡 **Quick Start:** Create configuration files in the `config/` folder with .json extension")
+        
+        # Option to create a sample config
+        if st.button("🔧 Create Sample Configuration Files"):
+            # Create sample configurations
+            sample_configs = [
+                {
+                    "filename": "default.json",
+                    "data": {
+                        "name": "Default Configuration",
+                        "description": "Basic asset and protocol combinations",
+                        "asset_combinations": {
+                            "Stablecoins": ["USDC", "USDT", "DAI"],
+                            "Ethereum Ecosystem": ["ETH", "WETH"]
+                        },
+                        "asset_renames": {
+                            "BTC": "Bitcoin",
+                            "ETH": "Ethereum"
+                        },
+                        "protocol_combinations": {
+                            "Silo Combined": ["SILO | Silo (Rewards)", "USDC | Silo (Yield)"]
+                        },
+                        "protocol_renames": {}
+                    }
+                }
+            ]
+            
+            success_count = 0
+            for config in sample_configs:
+                if save_config_to_file(config["data"], config["filename"]):
+                    success_count += 1
+            
+            if success_count > 0:
+                st.success(f"✅ Created {success_count} sample configuration file(s)")
+                st.rerun()
+            
+        return None
+    
+    # Configuration selector
+    config_options = {config['file_name']: config for config in available_configs}
+    
+    selected_file = st.selectbox(
+        "📋 Select Configuration",
+        options=list(config_options.keys()),
+        format_func=lambda x: f"{config_options[x]['display_name']} ({x})",
+        help="Choose which configuration to use for asset combinations and renames"
+    )
+    
+    if selected_file:
+        selected_config = config_options[selected_file]
+        
+        # Show configuration details
+        st.info(f"**Description:** {selected_config['description']}")
+        
+        # Configuration preview
+        with st.expander("👀 Preview Configuration", expanded=False):
+            config_data = selected_config['data']
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Asset Combinations:**")
+                asset_combinations = config_data.get('asset_combinations', {})
+                if asset_combinations:
+                    for group_name, assets in asset_combinations.items():
+                        st.write(f"• {group_name}: {', '.join(assets)}")
+                else:
+                    st.write("None")
+                
+                st.markdown("**Asset Renames:**")
+                asset_renames = config_data.get('asset_renames', {})
+                if asset_renames:
+                    for old_name, new_name in asset_renames.items():
+                        st.write(f"• {old_name} → {new_name}")
+                else:
+                    st.write("None")
+            
+            with col2:
+                st.markdown("**Protocol Combinations:**")
+                protocol_combinations = config_data.get('protocol_combinations', {})
+                if protocol_combinations:
+                    for group_name, protocols in protocol_combinations.items():
+                        st.write(f"• {group_name}:")
+                        for protocol in protocols:
+                            st.write(f"  - {protocol}")
+                else:
+                    st.write("None")
+                
+                st.markdown("**Protocol Renames:**")
+                protocol_renames = config_data.get('protocol_renames', {})
+                if protocol_renames:
+                    for old_name, new_name in protocol_renames.items():
+                        st.write(f"• {old_name} → {new_name}")
+                else:
+                    st.write("None")
+        
+        return selected_file
+    
+    return None
+
+
+def apply_asset_combinations(df, config, analysis_type):
+    """Apply asset combinations and renames based on configuration"""
+    df_processed = df.copy()
+    
+    if analysis_type == 'assets':
+        combinations = config.get('asset_combinations', {})
+        renames = config.get('asset_renames', {})
+        item_col = 'coin'
+        combined_col = 'combined_asset'
+        
+    else:  # protocol_positions
+        # Filter out wallet positions first
+        df_processed = df_processed[df_processed['protocol'] != 'Wallet'].copy()
+        # Create protocol-asset identifier
+        df_processed = create_protocol_asset_identifier(df_processed)
+        combinations = config.get('protocol_combinations', {})
+        renames = config.get('protocol_renames', {})
+        item_col = 'protocol_asset'
+        combined_col = 'combined_protocol_asset'
+    
+    # Initialize the combined column with original values
+    df_processed[combined_col] = df_processed[item_col]
+    
+    # Apply combinations first (items in combinations will be grouped)
+    items_in_combinations = set()
+    for combined_name, items_to_combine in combinations.items():
+        for item in items_to_combine:
+            items_in_combinations.add(item)
+            # Replace individual items with combined name
+            df_processed.loc[df_processed[item_col] == item, combined_col] = combined_name
+    
+    # Apply renames to items NOT in combinations
+    for original_name, new_name in renames.items():
+        if original_name not in items_in_combinations:
+            df_processed.loc[df_processed[item_col] == original_name, combined_col] = new_name
+    
+    return df_processed, combined_col
 
 
 def create_protocol_asset_identifier(df):
@@ -19,33 +254,40 @@ def create_protocol_asset_identifier(df):
     return df_copy
 
 
-def get_top_assets_by_value(df, top_n=10):
-    """Get top N assets by current portfolio value"""
-    current_time = df['timestamp'].max()
-    current_data = df[df['timestamp'] == current_time]
+def get_top_items_by_value(df, config, analysis_type, top_n=10):
+    """Get top N items by current portfolio value with combinations applied"""
+    df_processed, combined_col = apply_asset_combinations(df, config, analysis_type)
     
-    asset_values = current_data.groupby('coin')['usd_value_numeric'].sum().sort_values(ascending=False)
-    return asset_values.head(top_n).index.tolist()
+    current_time = df_processed['timestamp'].max()
+    current_data = df_processed[df_processed['timestamp'] == current_time]
+    
+    item_values = current_data.groupby(combined_col)['usd_value_numeric'].sum().sort_values(ascending=False)
+    return item_values.head(top_n).index.tolist()
 
 
-def get_top_performing_assets(df, period_days=30, top_n=10):
-    """Get top N performing assets by return percentage"""
-    current_time = df['timestamp'].max()
+def get_top_performing_items(df, config, analysis_type, period_days=30, top_n=10):
+    """Get top N performing items by return percentage with combinations applied"""
+    df_processed, combined_col = apply_asset_combinations(df, config, analysis_type)
+    
+    current_time = df_processed['timestamp'].max()
     period_start = current_time - timedelta(days=period_days)
     
-    asset_returns = []
+    item_returns = []
     
-    for asset in df['coin'].unique():
-        asset_data = df[df['coin'] == asset]
+    for item in df_processed[combined_col].unique():
+        if pd.isna(item):
+            continue
+            
+        item_data = df_processed[df_processed[combined_col] == item]
         
         # Current value
-        current_data = asset_data[asset_data['timestamp'] == current_time]
+        current_data = item_data[item_data['timestamp'] == current_time]
         if len(current_data) == 0:
             continue
         current_value = current_data['usd_value_numeric'].sum()
         
         # Period start value
-        period_data = asset_data[asset_data['timestamp'] >= period_start]
+        period_data = item_data[item_data['timestamp'] >= period_start]
         if len(period_data) == 0:
             continue
             
@@ -54,113 +296,40 @@ def get_top_performing_assets(df, period_days=30, top_n=10):
         
         if start_value > 0:
             return_pct = ((current_value - start_value) / start_value) * 100
-            asset_returns.append({'asset': asset, 'return': return_pct, 'current_value': current_value})
-    
-    # Sort by return and filter for assets with meaningful value (>$1)
-    asset_returns_df = pd.DataFrame(asset_returns)
-    if len(asset_returns_df) > 0:
-        filtered_returns = asset_returns_df[asset_returns_df['current_value'] > 1]
-        top_performers = filtered_returns.sort_values('return', ascending=False).head(top_n)
-        return top_performers['asset'].tolist()
-    
-    return []
-
-
-def get_top_protocol_assets_by_value(df, top_n=10):
-    """Get top N protocol-asset combinations by current portfolio value, excluding wallet positions"""
-    if 'protocol' not in df.columns:
-        return []
-    
-    # Filter out wallet positions first
-    df_filtered = df[df['protocol'] != 'Wallet'].copy()
-    
-    # Create protocol-asset identifier
-    df_with_identifier = create_protocol_asset_identifier(df_filtered)
-    
-    current_time = df_with_identifier['timestamp'].max()
-    current_data = df_with_identifier[df_with_identifier['timestamp'] == current_time]
-    
-    protocol_asset_values = current_data.groupby('protocol_asset')['usd_value_numeric'].sum().sort_values(ascending=False)
-    return protocol_asset_values.head(top_n).index.tolist()
-
-
-def get_top_performing_protocol_assets(df, period_days=30, top_n=10):
-    """Get top N performing protocol-asset combinations by return percentage, excluding wallet positions"""
-    if 'protocol' not in df.columns:
-        return []
-    
-    # Filter out wallet positions first
-    df_filtered = df[df['protocol'] != 'Wallet'].copy()
-    
-    # Create protocol-asset identifier
-    df_with_identifier = create_protocol_asset_identifier(df_filtered)
-    
-    current_time = df_with_identifier['timestamp'].max()
-    period_start = current_time - timedelta(days=period_days)
-    
-    protocol_asset_returns = []
-    
-    for protocol_asset in df_with_identifier['protocol_asset'].unique():
-        if pd.isna(protocol_asset):
-            continue
-            
-        protocol_asset_data = df_with_identifier[df_with_identifier['protocol_asset'] == protocol_asset]
-        
-        # Current value
-        current_data = protocol_asset_data[protocol_asset_data['timestamp'] == current_time]
-        if len(current_data) == 0:
-            continue
-        current_value = current_data['usd_value_numeric'].sum()
-        
-        # Period start value
-        period_data = protocol_asset_data[protocol_asset_data['timestamp'] >= period_start]
-        if len(period_data) == 0:
-            continue
-            
-        start_value = period_data.sort_values('timestamp').iloc[0]['usd_value_numeric']
-        
-        if start_value > 0:
-            return_pct = ((current_value - start_value) / start_value) * 100
-            protocol_asset_returns.append({
-                'protocol_asset': protocol_asset, 
+            item_returns.append({
+                'item': item, 
                 'return': return_pct, 
                 'current_value': current_value
             })
     
-    # Sort by return and filter for protocol-assets with meaningful value (>$5)
-    protocol_asset_returns_df = pd.DataFrame(protocol_asset_returns)
-    if len(protocol_asset_returns_df) > 0:
-        filtered_returns = protocol_asset_returns_df[protocol_asset_returns_df['current_value'] > 5]
+    # Sort by return and filter for items with meaningful value
+    item_returns_df = pd.DataFrame(item_returns)
+    if len(item_returns_df) > 0:
+        min_value = 5 if analysis_type == 'protocol_positions' else 1
+        filtered_returns = item_returns_df[item_returns_df['current_value'] > min_value]
         top_performers = filtered_returns.sort_values('return', ascending=False).head(top_n)
-        return top_performers['protocol_asset'].tolist()
+        return top_performers['item'].tolist()
     
     return []
 
 
-def calculate_apr_data(df, selected_items, period_days, analysis_type):
-    """Calculate APR and summary data for selected assets or protocol-assets"""
-    current_time = df['timestamp'].max()
+def calculate_apr_data_with_combinations(df, config, selected_items, period_days, analysis_type):
+    """Calculate APR and summary data for selected items with combinations applied"""
+    df_processed, combined_col = apply_asset_combinations(df, config, analysis_type)
+    
+    current_time = df_processed['timestamp'].max()
     period_start = current_time - timedelta(days=period_days)
-    filtered_df = df[df['timestamp'] >= period_start]
+    filtered_df = df_processed[df_processed['timestamp'] >= period_start]
     
     apr_data = []
     total_start_value = 0
     total_end_value = 0
     
-    if analysis_type == 'assets':
-        item_col = 'coin'
-    else:  # protocol_positions
-        # Filter out wallet positions first
-        filtered_df = filtered_df[filtered_df['protocol'] != 'Wallet'].copy()
-        # Create protocol-asset identifier for filtered data
-        filtered_df = create_protocol_asset_identifier(filtered_df)
-        item_col = 'protocol_asset'
-    
     for item in selected_items:
         if pd.isna(item):
             continue
             
-        item_data = filtered_df[filtered_df[item_col] == item]
+        item_data = filtered_df[filtered_df[combined_col] == item]
         if len(item_data) == 0:
             continue
             
@@ -201,6 +370,83 @@ def calculate_apr_data(df, selected_items, period_days, analysis_type):
         total_apr = 0
     
     return apr_data, total_start_value, total_end_value, total_period_return, total_apr
+
+
+def create_performance_comparison_with_combinations(df, config, selected_items, period_days, analysis_type):
+    """Create performance comparison chart with combinations applied"""
+    if not selected_items:
+        return None
+    
+    df_processed, combined_col = apply_asset_combinations(df, config, analysis_type)
+    
+    current_time = df_processed['timestamp'].max()
+    period_start = current_time - timedelta(days=period_days)
+    filtered_df = df_processed[df_processed['timestamp'] >= period_start]
+    
+    performance_data = []
+    
+    for item in selected_items:
+        if pd.isna(item):
+            continue
+            
+        item_data = filtered_df[filtered_df[combined_col] == item]
+        if len(item_data) == 0:
+            continue
+            
+        # Group by timestamp and sum values
+        item_timeline = item_data.groupby('timestamp')['usd_value_numeric'].sum().reset_index()
+        item_timeline = item_timeline.sort_values('timestamp')
+        
+        if len(item_timeline) >= 2:
+            initial_value = item_timeline['usd_value_numeric'].iloc[0]
+            
+            for _, row in item_timeline.iterrows():
+                if initial_value > 0:
+                    cumulative_return = ((row['usd_value_numeric'] / initial_value) - 1) * 100
+                else:
+                    cumulative_return = 0
+                    
+                performance_data.append({
+                    'timestamp': row['timestamp'],
+                    'item': item,
+                    'cumulative_return': cumulative_return
+                })
+    
+    if not performance_data:
+        return None
+    
+    perf_df = pd.DataFrame(performance_data)
+    
+    # Create the chart
+    title_prefix = "💰" if analysis_type == "assets" else "🏛️"
+    title_type = "Asset" if analysis_type == "assets" else "Protocol Position"
+    
+    fig = px.line(
+        perf_df,
+        x='timestamp',
+        y='cumulative_return',
+        color='item',
+        title=f"{title_prefix} {title_type} Performance Comparison ({period_days} Days)",
+        labels={'cumulative_return': 'Cumulative Return (%)', 'timestamp': 'Date', 'item': title_type}
+    )
+    
+    # Add zero line
+    fig.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5)
+    
+    # Update layout
+    fig.update_layout(
+        hovermode='x unified',
+        legend=dict(
+            orientation="h", 
+            yanchor="bottom", 
+            y=1.02, 
+            xanchor="right", 
+            x=1
+        ),
+        height=500
+    )
+    
+    return fig
 
 
 def create_apr_summary_table(apr_data, total_start_value, total_end_value, total_period_return, total_apr, period_days, analysis_type):
@@ -276,155 +522,16 @@ def create_apr_summary_table(apr_data, total_start_value, total_end_value, total
                 st.info(f"📊 **Lowest Performer:** {worst_performer['Item']} ({worst_performer['APR (%)']:+.2f}% APR)")
 
 
-def create_asset_performance_comparison(df, selected_assets, period_days=30):
-    """Create asset performance comparison chart"""
-    if not selected_assets:
-        return None
+def simplified_performance_analysis(historical_df, selected_config_file):
+    """Simplified performance analysis with asset and protocol-asset comparison and combinations"""
     
-    current_time = df['timestamp'].max()
-    period_start = current_time - timedelta(days=period_days)
-    filtered_df = df[df['timestamp'] >= period_start]
-    
-    performance_data = []
-    
-    for asset in selected_assets:
-        asset_data = filtered_df[filtered_df['coin'] == asset]
-        if len(asset_data) == 0:
-            continue
-            
-        # Group by timestamp and sum values
-        asset_timeline = asset_data.groupby('timestamp')['usd_value_numeric'].sum().reset_index()
-        asset_timeline = asset_timeline.sort_values('timestamp')
-        
-        if len(asset_timeline) >= 2:
-            initial_value = asset_timeline['usd_value_numeric'].iloc[0]
-            
-            for _, row in asset_timeline.iterrows():
-                if initial_value > 0:
-                    cumulative_return = ((row['usd_value_numeric'] / initial_value) - 1) * 100
-                else:
-                    cumulative_return = 0
-                    
-                performance_data.append({
-                    'timestamp': row['timestamp'],
-                    'asset': asset,
-                    'cumulative_return': cumulative_return
-                })
-    
-    if not performance_data:
-        return None
-    
-    perf_df = pd.DataFrame(performance_data)
-    
-    # Create the chart
-    fig = px.line(
-        perf_df,
-        x='timestamp',
-        y='cumulative_return',
-        color='asset',
-        title=f"📈 Asset Performance Comparison ({period_days} Days)",
-        labels={'cumulative_return': 'Cumulative Return (%)', 'timestamp': 'Date'}
-    )
-    
-    # Add zero line
-    fig.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5)
-    
-    # Update layout
-    fig.update_layout(
-        hovermode='x unified',
-        legend=dict(
-            orientation="h", 
-            yanchor="bottom", 
-            y=1.02, 
-            xanchor="right", 
-            x=1
-        ),
-        height=500
-    )
-    
-    return fig
-
-
-def create_protocol_asset_performance_comparison(df, selected_protocol_assets, period_days=30):
-    """Create protocol-asset performance comparison chart with separate positions, excluding wallet positions"""
-    if not selected_protocol_assets or 'protocol' not in df.columns:
-        return None
-    
-    current_time = df['timestamp'].max()
-    period_start = current_time - timedelta(days=period_days)
-    filtered_df = df[df['timestamp'] >= period_start]
-    
-    # Filter out wallet positions first
-    filtered_df = filtered_df[filtered_df['protocol'] != 'Wallet'].copy()
-    
-    # Create protocol-asset identifier
-    filtered_df = create_protocol_asset_identifier(filtered_df)
-    
-    performance_data = []
-    
-    for protocol_asset in selected_protocol_assets:
-        if pd.isna(protocol_asset):
-            continue
-            
-        protocol_asset_data = filtered_df[filtered_df['protocol_asset'] == protocol_asset]
-        if len(protocol_asset_data) == 0:
-            continue
-            
-        # Group by timestamp and sum values
-        protocol_asset_timeline = protocol_asset_data.groupby('timestamp')['usd_value_numeric'].sum().reset_index()
-        protocol_asset_timeline = protocol_asset_timeline.sort_values('timestamp')
-        
-        if len(protocol_asset_timeline) >= 2:
-            initial_value = protocol_asset_timeline['usd_value_numeric'].iloc[0]
-            
-            for _, row in protocol_asset_timeline.iterrows():
-                if initial_value > 0:
-                    cumulative_return = ((row['usd_value_numeric'] / initial_value) - 1) * 100
-                else:
-                    cumulative_return = 0
-                    
-                performance_data.append({
-                    'timestamp': row['timestamp'],
-                    'protocol_asset': protocol_asset,
-                    'cumulative_return': cumulative_return
-                })
-    
-    if not performance_data:
-        return None
-    
-    perf_df = pd.DataFrame(performance_data)
-    
-    # Create the chart
-    fig = px.line(
-        perf_df,
-        x='timestamp',
-        y='cumulative_return',
-        color='protocol_asset',
-        title=f"🏛️ Protocol Position Performance Comparison ({period_days} Days)",
-        labels={'cumulative_return': 'Cumulative Return (%)', 'timestamp': 'Date'}
-    )
-    
-    # Add zero line
-    fig.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5)
-    
-    # Update layout
-    fig.update_layout(
-        hovermode='x unified',
-        legend=dict(
-            orientation="h", 
-            yanchor="bottom", 
-            y=1.02, 
-            xanchor="right", 
-            x=1
-        ),
-        height=500
-    )
-    
-    return fig
-
-
-def simplified_performance_analysis(historical_df):
-    """Simplified performance analysis with asset and protocol-asset comparison"""
+    # Load configuration
+    if selected_config_file:
+        config = load_selected_config(selected_config_file)
+        st.success(f"✅ Using configuration: {config.get('name', selected_config_file)}")
+    else:
+        config = get_default_config()
+        st.info("ℹ️ Using default configuration (no combinations)")
     
     st.header("📊 Performance Comparison")
     
@@ -450,44 +557,8 @@ def simplified_performance_analysis(historical_df):
             format_func=lambda x: f"{x} days"
         )
     
-    # Asset or Protocol Position specific logic
-    if analysis_type == "assets":
-        with col2:
-            selection_method = st.selectbox(
-                "Show Assets",
-                options=["top_value", "top_performers", "custom"],
-                format_func=lambda x: {
-                    "top_value": "🏆 Top 10 by Portfolio Value", 
-                    "top_performers": "🚀 Top 10 Best Performers",
-                    "custom": "🎯 Custom Selection"
-                }[x]
-            )
-        
-        # Get selected assets based on method
-        if selection_method == "top_value":
-            selected_items = get_top_assets_by_value(historical_df, 10)
-            st.info(f"Showing top 10 assets by current portfolio value")
-            
-        elif selection_method == "top_performers":
-            selected_items = get_top_performing_assets(historical_df, analysis_period, 10)
-            st.info(f"Showing top 10 best performing assets over {analysis_period} days")
-            
-        else:  # custom
-            available_items = sorted(historical_df['coin'].unique())
-            selected_items = st.multiselect(
-                "Select assets:",
-                options=available_items,
-                default=available_items[:5] if len(available_items) >= 5 else available_items
-            )
-        
-        # Create chart
-        if selected_items:
-            chart = create_asset_performance_comparison(historical_df, selected_items, analysis_period)
-        else:
-            chart = None
-            st.warning("No assets selected or available for analysis.")
-    
-    else:  # protocol_positions
+    # Protocol Position specific logic
+    if analysis_type == "protocol_positions":
         # Check if protocol data exists
         if 'protocol' not in historical_df.columns:
             st.error("❌ Protocol data not found in the dataset. Please ensure your data includes protocol information.")
@@ -499,62 +570,56 @@ def simplified_performance_analysis(historical_df):
         if len(df_no_wallet) == 0:
             st.error("❌ No protocol positions found in the dataset. Only wallet positions available.")
             return
-            
-        df_with_identifier = create_protocol_asset_identifier(df_no_wallet)
-        available_protocol_assets = df_with_identifier['protocol_asset'].dropna().unique()
-        
-        if len(available_protocol_assets) == 0:
-            st.error("❌ No protocol position data available in the dataset.")
-            return
-        
-        with col2:
-            selection_method = st.selectbox(
-                "Show Protocol Positions",
-                options=["top_value", "top_performers", "custom"],
-                format_func=lambda x: {
-                    "top_value": "🏆 Top 10 by Portfolio Value", 
-                    "top_performers": "🚀 Top 10 Best Performers",
-                    "custom": "🎯 Custom Selection"
-                }[x]
-            )
-        
-        # Get selected protocol-assets based on method
-        if selection_method == "top_value":
-            selected_items = get_top_protocol_assets_by_value(historical_df, 10)
-            st.info(f"Showing top 10 protocol positions by current portfolio value")
-            
-        elif selection_method == "top_performers":
-            selected_items = get_top_performing_protocol_assets(historical_df, analysis_period, 10)
-            st.info(f"Showing top 10 best performing protocol positions over {analysis_period} days")
-            
-        else:  # custom
-            selected_items = st.multiselect(
-                "Select protocol positions:",
-                options=sorted(available_protocol_assets),
-                default=sorted(available_protocol_assets)[:5] if len(available_protocol_assets) >= 5 else sorted(available_protocol_assets),
-                help="Format: Asset | Protocol (e.g., USDC | Peapods Finance V2 (Lending))"
-            )
-        
-        # Create chart
-        if selected_items:
-            chart = create_protocol_asset_performance_comparison(historical_df, selected_items, analysis_period)
-        else:
-            chart = None
-            st.warning("No protocol positions selected or available for analysis.")
     
-    # Display the chart
-    if chart:
-        st.plotly_chart(chart, use_container_width=True)
-    elif selected_items:
-        st.warning("No data available for the selected items and period.")
+    with col2:
+        selection_method = st.selectbox(
+            f"Show {analysis_type.replace('_', ' ').title()}",
+            options=["top_value", "top_performers", "custom"],
+            format_func=lambda x: {
+                "top_value": "🏆 Top 10 by Portfolio Value", 
+                "top_performers": "🚀 Top 10 Best Performers",
+                "custom": "🎯 Custom Selection"
+            }[x]
+        )
     
-    # Add APR Summary Table after the chart
+    # Get selected items based on method
+    if selection_method == "top_value":
+        selected_items = get_top_items_by_value(historical_df, config, analysis_type, 10)
+        st.info(f"Showing top 10 {analysis_type.replace('_', ' ')} by current portfolio value")
+        
+    elif selection_method == "top_performers":
+        selected_items = get_top_performing_items(historical_df, config, analysis_type, analysis_period, 10)
+        st.info(f"Showing top 10 best performing {analysis_type.replace('_', ' ')} over {analysis_period} days")
+        
+    else:  # custom
+        # Get available items with combinations applied
+        df_processed, combined_col = apply_asset_combinations(historical_df, config, analysis_type)
+        available_items = sorted(df_processed[combined_col].dropna().unique())
+        
+        selected_items = st.multiselect(
+            f"Select {analysis_type.replace('_', ' ')}:",
+            options=available_items,
+            default=available_items[:5] if len(available_items) >= 5 else available_items,
+            help="Items are shown with combinations and renames applied based on selected configuration"
+        )
+    
+    # Create chart
     if selected_items:
+        chart = create_performance_comparison_with_combinations(
+            historical_df, config, selected_items, analysis_period, analysis_type
+        )
+        
+        if chart:
+            st.plotly_chart(chart, use_container_width=True)
+        else:
+            st.warning("No data available for the selected items and period.")
+            
+        # Add APR Summary Table after the chart
         st.markdown("---")
         
         # Calculate APR data
-        apr_data, total_start_value, total_end_value, total_period_return, total_apr = calculate_apr_data(
-            historical_df, selected_items, analysis_period, analysis_type
+        apr_data, total_start_value, total_end_value, total_period_return, total_apr = calculate_apr_data_with_combinations(
+            historical_df, config, selected_items, analysis_period, analysis_type
         )
         
         # Display APR summary table
@@ -562,12 +627,25 @@ def simplified_performance_analysis(historical_df):
             apr_data, total_start_value, total_end_value, 
             total_period_return, total_apr, analysis_period, analysis_type
         )
+    else:
+        st.warning("No items selected or available for analysis.")
 
 
 # Main function to integrate into your app
 def performance_analysis_page():
-    """Main performance analysis page - simplified version with asset and protocol position comparison"""
+    """Main performance analysis page with config folder management"""
     st.title("📊 Portfolio Performance Analysis")
+    
+    # Configuration Management Section
+    with st.expander("⚙️ Configuration Management", expanded=True):
+        selected_config_file = create_config_management_ui()
+        
+        if selected_config_file:
+            col1, col2 = st.columns([3, 1])
+            with col2:
+                if st.button("🔄 Reload Config"):
+                    st.rerun()
+    
     st.markdown("---")
 
     # Load historical data
@@ -587,8 +665,8 @@ def performance_analysis_page():
         if historical_df is None:
             return
 
-    # Run simplified performance analysis
-    simplified_performance_analysis(historical_df)
+    # Run simplified performance analysis with configurations
+    simplified_performance_analysis(historical_df, selected_config_file)
 
 
 # If running as standalone

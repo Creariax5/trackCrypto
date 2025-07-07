@@ -1,0 +1,8 @@
+{
+  "name": "My Custom Config",
+  "description": "Groups Silo positions together",
+  "protocol_combinations": {
+    "Silo Combined": ["SILO | Silo (Rewards)", "USDC | Silo (Yield)"],
+    "Notional Combined": ["NOTE | Notional (Lending)", "USDC | Notional (Lending)"]
+  }
+}

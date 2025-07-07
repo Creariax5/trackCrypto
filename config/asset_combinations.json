@@ -1,0 +1,24 @@
+{
+  "asset_combinations": {
+    "Stablecoins": ["USDC", "USDT", "DAI", "FRAX", "SILO", "NOTE"],
+    "Ethereum Ecosystem": ["ETH", "WETH"],
+    "Major Bitcoin": ["BTC", "WBTC"]
+  },
+  "asset_renames": {
+    "BTC": "Bitcoin",
+    "ETH": "Ethereum",
+    "WBTC": "Wrapped Bitcoin",
+    "WETH": "Wrapped Ethereum"
+  },
+  "protocol_combinations": {
+    "Silo Combined": ["SILO | Silo (Rewards)", "USDC | Silo (Yield)"],
+    "Compound Positions": ["USDC | Compound V3", "ETH | Compound V3", "WBTC | Compound V3"],
+    "Aave Ecosystem": ["USDC | Aave V3", "ETH | Aave V3", "DAI | Aave V3"],
+    "Uniswap LPs": ["ETH | Uniswap V3", "USDC | Uniswap V3"]
+  },
+  "protocol_renames": {
+    "USDC | Compound V3": "Compound USDC Lending",
+    "ETH | Aave V3": "Aave ETH Deposit",
+    "BTC | Lightning": "Lightning BTC"
+  }
+}
