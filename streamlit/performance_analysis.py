@@ -6,57 +6,17 @@ import numpy as np
 from datetime import timedelta
 
 
-def merge_similar_assets(df, merge_enabled=False):
-    """Merge assets with same base name (removing parentheses) when enabled"""
-    if not merge_enabled:
+def create_protocol_asset_identifier(df):
+    """Create unique identifier combining protocol and asset, excluding wallet positions"""
+    if 'protocol' not in df.columns:
         return df
     
     df_copy = df.copy()
-    
-    # Create base name by removing parentheses content
-    # Use regex=False to treat the pattern as literal string
-    df_copy['coin_base'] = df_copy['coin'].str.split(' (', regex=False).str[0]
-    
-    # If protocol column exists, do the same for protocols
-    if 'protocol' in df_copy.columns:
-        df_copy['protocol_base'] = df_copy['protocol'].str.split(' (', regex=False).str[0]
-    
-    # Group by timestamp, base coin name, and base protocol name (if exists)
-    group_cols = ['timestamp', 'coin_base']
-    if 'protocol' in df_copy.columns:
-        group_cols.append('protocol_base')
-    
-    # Aggregate the data
-    agg_dict = {
-        'usd_value_numeric': 'sum',
-        'coin': 'first',  # Keep the first coin name as reference
-    }
-    
-    if 'protocol' in df_copy.columns:
-        agg_dict['protocol'] = 'first'
-    
-    # Add any other numeric columns that should be summed
-    numeric_cols = df_copy.select_dtypes(include=[np.number]).columns
-    for col in numeric_cols:
-        if col != 'usd_value_numeric' and col not in agg_dict:
-            agg_dict[col] = 'sum'
-    
-    # Add any other columns that should be kept
-    for col in df_copy.columns:
-        if col not in group_cols and col not in agg_dict and col not in ['coin_base', 'protocol_base']:
-            agg_dict[col] = 'first'
-    
-    merged_df = df_copy.groupby(group_cols).agg(agg_dict).reset_index()
-    
-    # Replace the original names with base names
-    merged_df['coin'] = merged_df['coin_base']
-    if 'protocol' in merged_df.columns and 'protocol_base' in merged_df.columns:
-        merged_df['protocol'] = merged_df['protocol_base']
-    
-    # Clean up temporary columns
-    merged_df = merged_df.drop(columns=[col for col in ['coin_base', 'protocol_base'] if col in merged_df.columns])
-    
-    return merged_df
+    # Filter out wallet positions (direct token holdings)
+    df_copy = df_copy[df_copy['protocol'] != 'Wallet'].copy()
+    # Create a unique identifier for each protocol-asset combination
+    df_copy['protocol_asset'] = df_copy['coin'] + " | " + df_copy['protocol']
+    return df_copy
 
 
 def get_top_assets_by_value(df, top_n=10):
@@ -106,42 +66,54 @@ def get_top_performing_assets(df, period_days=30, top_n=10):
     return []
 
 
-def get_top_protocols_by_value(df, top_n=10):
-    """Get top N protocols by current portfolio value"""
+def get_top_protocol_assets_by_value(df, top_n=10):
+    """Get top N protocol-asset combinations by current portfolio value, excluding wallet positions"""
     if 'protocol' not in df.columns:
         return []
-        
-    current_time = df['timestamp'].max()
-    current_data = df[df['timestamp'] == current_time]
     
-    protocol_values = current_data.groupby('protocol')['usd_value_numeric'].sum().sort_values(ascending=False)
-    return protocol_values.head(top_n).index.tolist()
+    # Filter out wallet positions first
+    df_filtered = df[df['protocol'] != 'Wallet'].copy()
+    
+    # Create protocol-asset identifier
+    df_with_identifier = create_protocol_asset_identifier(df_filtered)
+    
+    current_time = df_with_identifier['timestamp'].max()
+    current_data = df_with_identifier[df_with_identifier['timestamp'] == current_time]
+    
+    protocol_asset_values = current_data.groupby('protocol_asset')['usd_value_numeric'].sum().sort_values(ascending=False)
+    return protocol_asset_values.head(top_n).index.tolist()
 
 
-def get_top_performing_protocols(df, period_days=30, top_n=10):
-    """Get top N performing protocols by return percentage"""
+def get_top_performing_protocol_assets(df, period_days=30, top_n=10):
+    """Get top N performing protocol-asset combinations by return percentage, excluding wallet positions"""
     if 'protocol' not in df.columns:
         return []
-        
-    current_time = df['timestamp'].max()
+    
+    # Filter out wallet positions first
+    df_filtered = df[df['protocol'] != 'Wallet'].copy()
+    
+    # Create protocol-asset identifier
+    df_with_identifier = create_protocol_asset_identifier(df_filtered)
+    
+    current_time = df_with_identifier['timestamp'].max()
     period_start = current_time - timedelta(days=period_days)
     
-    protocol_returns = []
+    protocol_asset_returns = []
     
-    for protocol in df['protocol'].unique():
-        if pd.isna(protocol):
+    for protocol_asset in df_with_identifier['protocol_asset'].unique():
+        if pd.isna(protocol_asset):
             continue
             
-        protocol_data = df[df['protocol'] == protocol]
+        protocol_asset_data = df_with_identifier[df_with_identifier['protocol_asset'] == protocol_asset]
         
         # Current value
-        current_data = protocol_data[protocol_data['timestamp'] == current_time]
+        current_data = protocol_asset_data[protocol_asset_data['timestamp'] == current_time]
         if len(current_data) == 0:
             continue
         current_value = current_data['usd_value_numeric'].sum()
         
         # Period start value
-        period_data = protocol_data[protocol_data['timestamp'] >= period_start]
+        period_data = protocol_asset_data[protocol_asset_data['timestamp'] >= period_start]
         if len(period_data) == 0:
             continue
             
@@ -149,24 +121,24 @@ def get_top_performing_protocols(df, period_days=30, top_n=10):
         
         if start_value > 0:
             return_pct = ((current_value - start_value) / start_value) * 100
-            protocol_returns.append({
-                'protocol': protocol, 
+            protocol_asset_returns.append({
+                'protocol_asset': protocol_asset, 
                 'return': return_pct, 
                 'current_value': current_value
             })
     
-    # Sort by return and filter for protocols with meaningful value (>$5)
-    protocol_returns_df = pd.DataFrame(protocol_returns)
-    if len(protocol_returns_df) > 0:
-        filtered_returns = protocol_returns_df[protocol_returns_df['current_value'] > 5]
+    # Sort by return and filter for protocol-assets with meaningful value (>$5)
+    protocol_asset_returns_df = pd.DataFrame(protocol_asset_returns)
+    if len(protocol_asset_returns_df) > 0:
+        filtered_returns = protocol_asset_returns_df[protocol_asset_returns_df['current_value'] > 5]
         top_performers = filtered_returns.sort_values('return', ascending=False).head(top_n)
-        return top_performers['protocol'].tolist()
+        return top_performers['protocol_asset'].tolist()
     
     return []
 
 
 def calculate_apr_data(df, selected_items, period_days, analysis_type):
-    """Calculate APR and summary data for selected assets or protocols"""
+    """Calculate APR and summary data for selected assets or protocol-assets"""
     current_time = df['timestamp'].max()
     period_start = current_time - timedelta(days=period_days)
     filtered_df = df[df['timestamp'] >= period_start]
@@ -175,10 +147,17 @@ def calculate_apr_data(df, selected_items, period_days, analysis_type):
     total_start_value = 0
     total_end_value = 0
     
-    item_col = 'coin' if analysis_type == 'assets' else 'protocol'
+    if analysis_type == 'assets':
+        item_col = 'coin'
+    else:  # protocol_positions
+        # Filter out wallet positions first
+        filtered_df = filtered_df[filtered_df['protocol'] != 'Wallet'].copy()
+        # Create protocol-asset identifier for filtered data
+        filtered_df = create_protocol_asset_identifier(filtered_df)
+        item_col = 'protocol_asset'
     
     for item in selected_items:
-        if analysis_type == 'protocols' and pd.isna(item):
+        if pd.isna(item):
             continue
             
         item_data = filtered_df[filtered_df[item_col] == item]
@@ -241,7 +220,7 @@ def create_apr_summary_table(apr_data, total_start_value, total_end_value, total
     apr_df_display['APR (%)'] = apr_df_display['APR (%)'].apply(lambda x: f"{x:+.2f}%")
     
     # Display the table
-    item_type = "Assets" if analysis_type == "assets" else "Protocols"
+    item_type = "Assets" if analysis_type == "assets" else "Protocol Positions"
     st.subheader(f"📊 APR Summary - {item_type}")
     
     st.dataframe(
@@ -298,7 +277,7 @@ def create_apr_summary_table(apr_data, total_start_value, total_end_value, total
 
 
 def create_asset_performance_comparison(df, selected_assets, period_days=30):
-    """Create simplified asset performance comparison chart"""
+    """Create asset performance comparison chart"""
     if not selected_assets:
         return None
     
@@ -366,33 +345,39 @@ def create_asset_performance_comparison(df, selected_assets, period_days=30):
     return fig
 
 
-def create_protocol_performance_comparison(df, selected_protocols, period_days=30):
-    """Create protocol performance comparison chart"""
-    if not selected_protocols or 'protocol' not in df.columns:
+def create_protocol_asset_performance_comparison(df, selected_protocol_assets, period_days=30):
+    """Create protocol-asset performance comparison chart with separate positions, excluding wallet positions"""
+    if not selected_protocol_assets or 'protocol' not in df.columns:
         return None
     
     current_time = df['timestamp'].max()
     period_start = current_time - timedelta(days=period_days)
     filtered_df = df[df['timestamp'] >= period_start]
     
+    # Filter out wallet positions first
+    filtered_df = filtered_df[filtered_df['protocol'] != 'Wallet'].copy()
+    
+    # Create protocol-asset identifier
+    filtered_df = create_protocol_asset_identifier(filtered_df)
+    
     performance_data = []
     
-    for protocol in selected_protocols:
-        if pd.isna(protocol):
+    for protocol_asset in selected_protocol_assets:
+        if pd.isna(protocol_asset):
             continue
             
-        protocol_data = filtered_df[filtered_df['protocol'] == protocol]
-        if len(protocol_data) == 0:
+        protocol_asset_data = filtered_df[filtered_df['protocol_asset'] == protocol_asset]
+        if len(protocol_asset_data) == 0:
             continue
             
         # Group by timestamp and sum values
-        protocol_timeline = protocol_data.groupby('timestamp')['usd_value_numeric'].sum().reset_index()
-        protocol_timeline = protocol_timeline.sort_values('timestamp')
+        protocol_asset_timeline = protocol_asset_data.groupby('timestamp')['usd_value_numeric'].sum().reset_index()
+        protocol_asset_timeline = protocol_asset_timeline.sort_values('timestamp')
         
-        if len(protocol_timeline) >= 2:
-            initial_value = protocol_timeline['usd_value_numeric'].iloc[0]
+        if len(protocol_asset_timeline) >= 2:
+            initial_value = protocol_asset_timeline['usd_value_numeric'].iloc[0]
             
-            for _, row in protocol_timeline.iterrows():
+            for _, row in protocol_asset_timeline.iterrows():
                 if initial_value > 0:
                     cumulative_return = ((row['usd_value_numeric'] / initial_value) - 1) * 100
                 else:
@@ -400,7 +385,7 @@ def create_protocol_performance_comparison(df, selected_protocols, period_days=3
                     
                 performance_data.append({
                     'timestamp': row['timestamp'],
-                    'protocol': protocol,
+                    'protocol_asset': protocol_asset,
                     'cumulative_return': cumulative_return
                 })
     
@@ -414,8 +399,8 @@ def create_protocol_performance_comparison(df, selected_protocols, period_days=3
         perf_df,
         x='timestamp',
         y='cumulative_return',
-        color='protocol',
-        title=f"🏛️ Protocol Performance Comparison ({period_days} Days)",
+        color='protocol_asset',
+        title=f"🏛️ Protocol Position Performance Comparison ({period_days} Days)",
         labels={'cumulative_return': 'Cumulative Return (%)', 'timestamp': 'Date'}
     )
     
@@ -439,29 +424,17 @@ def create_protocol_performance_comparison(df, selected_protocols, period_days=3
 
 
 def simplified_performance_analysis(historical_df):
-    """Simplified performance analysis with asset and protocol comparison"""
+    """Simplified performance analysis with asset and protocol-asset comparison"""
     
     st.header("📊 Performance Comparison")
-    
-    # Merge similar assets checkbox
-    merge_assets = st.checkbox(
-        "🔄 Merge similar assets",
-        value=True,
-        help="Combine assets with same base name by removing parentheses content. Example: 'silo (yield)' + 'silo (reward)' = 'silo'"
-    )
-    
-    # Apply merging if enabled
-    if merge_assets:
-        historical_df = merge_similar_assets(historical_df, merge_enabled=True)
-        st.info("✅ Similar assets merged by base name")
     
     # Main analysis type selector
     analysis_type = st.selectbox(
         "Analysis Type",
-        options=["assets", "protocols"],
+        options=["assets", "protocol_positions"],
         format_func=lambda x: {
             "assets": "💰 Asset Performance", 
-            "protocols": "🏛️ Protocol Performance"
+            "protocol_positions": "🏛️ Protocol Position Performance"
         }[x],
         key="analysis_type"
     )
@@ -477,7 +450,7 @@ def simplified_performance_analysis(historical_df):
             format_func=lambda x: f"{x} days"
         )
     
-    # Asset or Protocol specific logic
+    # Asset or Protocol Position specific logic
     if analysis_type == "assets":
         with col2:
             selection_method = st.selectbox(
@@ -507,29 +480,36 @@ def simplified_performance_analysis(historical_df):
                 default=available_items[:5] if len(available_items) >= 5 else available_items
             )
         
-        # Show selected assets info and create chart
+        # Create chart
         if selected_items:
-            st.write(f"**Selected Assets ({len(selected_items)}):** {', '.join(selected_items)}")
             chart = create_asset_performance_comparison(historical_df, selected_items, analysis_period)
         else:
             chart = None
             st.warning("No assets selected or available for analysis.")
     
-    else:  # protocols
+    else:  # protocol_positions
         # Check if protocol data exists
         if 'protocol' not in historical_df.columns:
             st.error("❌ Protocol data not found in the dataset. Please ensure your data includes protocol information.")
             return
         
-        # Filter out NaN protocols for counting
-        available_protocols = historical_df['protocol'].dropna().unique()
-        if len(available_protocols) == 0:
-            st.error("❌ No protocol data available in the dataset.")
+        # Filter out wallet positions and create protocol-asset combinations
+        df_no_wallet = historical_df[historical_df['protocol'] != 'Wallet'].copy()
+        
+        if len(df_no_wallet) == 0:
+            st.error("❌ No protocol positions found in the dataset. Only wallet positions available.")
+            return
+            
+        df_with_identifier = create_protocol_asset_identifier(df_no_wallet)
+        available_protocol_assets = df_with_identifier['protocol_asset'].dropna().unique()
+        
+        if len(available_protocol_assets) == 0:
+            st.error("❌ No protocol position data available in the dataset.")
             return
         
         with col2:
             selection_method = st.selectbox(
-                "Show Protocols",
+                "Show Protocol Positions",
                 options=["top_value", "top_performers", "custom"],
                 format_func=lambda x: {
                     "top_value": "🏆 Top 10 by Portfolio Value", 
@@ -538,30 +518,29 @@ def simplified_performance_analysis(historical_df):
                 }[x]
             )
         
-        # Get selected protocols based on method
+        # Get selected protocol-assets based on method
         if selection_method == "top_value":
-            selected_items = get_top_protocols_by_value(historical_df, 10)
-            st.info(f"Showing top 10 protocols by current portfolio value")
+            selected_items = get_top_protocol_assets_by_value(historical_df, 10)
+            st.info(f"Showing top 10 protocol positions by current portfolio value")
             
         elif selection_method == "top_performers":
-            selected_items = get_top_performing_protocols(historical_df, analysis_period, 10)
-            st.info(f"Showing top 10 best performing protocols over {analysis_period} days")
+            selected_items = get_top_performing_protocol_assets(historical_df, analysis_period, 10)
+            st.info(f"Showing top 10 best performing protocol positions over {analysis_period} days")
             
         else:  # custom
-            available_items = sorted(available_protocols)
             selected_items = st.multiselect(
-                "Select protocols:",
-                options=available_items,
-                default=available_items[:5] if len(available_items) >= 5 else available_items
+                "Select protocol positions:",
+                options=sorted(available_protocol_assets),
+                default=sorted(available_protocol_assets)[:5] if len(available_protocol_assets) >= 5 else sorted(available_protocol_assets),
+                help="Format: Asset | Protocol (e.g., USDC | Peapods Finance V2 (Lending))"
             )
         
-        # Show selected protocols info and create chart
+        # Create chart
         if selected_items:
-            st.write(f"**Selected Protocols ({len(selected_items)}):** {', '.join(selected_items)}")
-            chart = create_protocol_performance_comparison(historical_df, selected_items, analysis_period)
+            chart = create_protocol_asset_performance_comparison(historical_df, selected_items, analysis_period)
         else:
             chart = None
-            st.warning("No protocols selected or available for analysis.")
+            st.warning("No protocol positions selected or available for analysis.")
     
     # Display the chart
     if chart:
@@ -587,7 +566,7 @@ def simplified_performance_analysis(historical_df):
 
 # Main function to integrate into your app
 def performance_analysis_page():
-    """Main performance analysis page - simplified version with asset and protocol comparison"""
+    """Main performance analysis page - simplified version with asset and protocol position comparison"""
     st.title("📊 Portfolio Performance Analysis")
     st.markdown("---")
 
@@ -608,7 +587,7 @@ def performance_analysis_page():
         if historical_df is None:
             return
 
-    # Run simplified performance analysis (assets and protocols)
+    # Run simplified performance analysis
     simplified_performance_analysis(historical_df)
 
 
