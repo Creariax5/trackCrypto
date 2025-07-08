@@ -14,7 +14,8 @@
     "WETH": "Wrapped Ethereum"
   },
   "protocol_combinations": {
-    "Silo Combined": ["SILO | Silo (Rewards)", "USDC | Silo (Yield)"]
+    "Silo Combined": ["SILO | Silo (Rewards)", "USDC | Silo (Yield)"],
+    "Notional Combined": ["NOTE | Notional (Lending)", "USDC | Notional (Lending)"]
   },
   "protocol_renames": {
     "USDC | Compound V3": "Compound USDC Lending",
