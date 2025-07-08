@@ -4,6 +4,7 @@ import re
 import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple
+import streamlit as st
 
 def parse_currency(value):
     """Parse currency string to float"""
@@ -57,7 +58,6 @@ def load_and_process_data(uploaded_file):
 
         return df
     except Exception as e:
-        import streamlit as st
         st.error(f"Error loading data: {e}")
         return None
 
@@ -90,7 +90,6 @@ def load_historical_data(file_path=None):
 
         return df
     except Exception as e:
-        import streamlit as st
         st.error(f"Error loading historical data: {e}")
         return None
 
@@ -254,3 +253,37 @@ def get_performance_metrics(timeline_df):
     metrics['current_drawdown'] = ((current_value - metrics['max_value']) / metrics['max_value'] * 100) if metrics['max_value'] > 0 else 0
 
     return metrics
+
+
+def validate_data_format(df):
+    """Validate that the DataFrame has the expected format"""
+    if df is None:
+        return False, "No data provided"
+    
+    required_columns = ['timestamp', 'coin', 'usd_value_numeric']
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    
+    if missing_columns:
+        return False, f"Missing required columns: {missing_columns}"
+    
+    if len(df) == 0:
+        return False, "Data is empty"
+    
+    return True, "Data format is valid"
+
+
+def preprocess_data(df):
+    """Preprocess the data for analysis"""
+    if df is None:
+        return None
+    
+    # Remove rows with null values in critical columns
+    df_clean = df.dropna(subset=['timestamp', 'coin', 'usd_value_numeric'])
+    
+    # Remove rows with zero or negative values
+    df_clean = df_clean[df_clean['usd_value_numeric'] > 0]
+    
+    # Sort by timestamp
+    df_clean = df_clean.sort_values('timestamp')
+    
+    return df_clean

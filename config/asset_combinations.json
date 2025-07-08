@@ -1,8 +1,10 @@
 {
+  "name": "Base",
   "asset_combinations": {
     "Stablecoins": ["USDC", "USDT", "DAI", "FRAX", "SILO", "NOTE"],
     "Ethereum Ecosystem": ["ETH", "WETH"],
-    "Major Bitcoin": ["BTC", "WBTC"]
+    "Major Bitcoin": ["BTC", "WBTC", "BTCB", "cbBTC"],
+    "Sonic X Shadow": ["S", "wS", "SHADOW", "xSHADOW", "x33", "GEMS"]
   },
   "asset_renames": {
     "BTC": "Bitcoin",
@@ -11,10 +13,7 @@
     "WETH": "Wrapped Ethereum"
   },
   "protocol_combinations": {
-    "Silo Combined": ["SILO | Silo (Rewards)", "USDC | Silo (Yield)"],
-    "Compound Positions": ["USDC | Compound V3", "ETH | Compound V3", "WBTC | Compound V3"],
-    "Aave Ecosystem": ["USDC | Aave V3", "ETH | Aave V3", "DAI | Aave V3"],
-    "Uniswap LPs": ["ETH | Uniswap V3", "USDC | Uniswap V3"]
+    "Silo Combined": ["SILO | Silo (Rewards)", "USDC | Silo (Yield)"]
   },
   "protocol_renames": {
     "USDC | Compound V3": "Compound USDC Lending",
