@@ -73,93 +73,6 @@ def create_portfolio_value_chart(timeline_df):
 
     return fig
 
-
-def create_top_assets_by_apy(df, min_days=7):
-    """Create top assets performance by APY"""
-    current_time = df['timestamp'].max()
-    
-    # Calculate APY for different periods
-    periods = [7, 30, 90]  # days
-    all_performances = []
-    
-    for period_days in periods:
-        period_start = current_time - timedelta(days=period_days)
-        period_data = df[df['timestamp'] >= period_start]
-        
-        if len(period_data) == 0:
-            continue
-            
-        # Group by asset and protocol
-        for (coin, protocol), group in period_data.groupby(['coin', 'protocol']):
-            asset_timeline = group.groupby('timestamp')['usd_value_numeric'].sum().reset_index()
-            asset_timeline = asset_timeline.sort_values('timestamp')
-            
-            if len(asset_timeline) >= 2:
-                start_value = asset_timeline['usd_value_numeric'].iloc[0]
-                end_value = asset_timeline['usd_value_numeric'].iloc[-1]
-                actual_days = (asset_timeline['timestamp'].max() - asset_timeline['timestamp'].min()).days
-                
-                if start_value > 0 and actual_days >= min_days:
-                    apy = calculate_apy(start_value, end_value, actual_days)
-                    
-                    all_performances.append({
-                        'asset': format_asset_name(coin, protocol),
-                        'coin': coin,
-                        'protocol': protocol,
-                        'period': f"{period_days}d",
-                        'apy': apy,
-                        'start_value': start_value,
-                        'end_value': end_value,
-                        'current_value': end_value,
-                        'return_pct': ((end_value - start_value) / start_value) * 100
-                    })
-    
-    if not all_performances:
-        return None
-    
-    return pd.DataFrame(all_performances)
-
-
-def create_apy_comparison_chart(performance_df):
-    """Create APY comparison chart"""
-    if performance_df is None or len(performance_df) == 0:
-        return None
-    
-    # Get top 15 assets by 30-day APY (or longest available period)
-    periods_priority = ['30d', '90d', '7d']
-    top_assets_df = None
-    
-    for period in periods_priority:
-        period_data = performance_df[performance_df['period'] == period]
-        if len(period_data) > 0:
-            top_assets_df = period_data.nlargest(15, 'apy')
-            break
-    
-    if top_assets_df is None:
-        return None
-    
-    # Create horizontal bar chart
-    fig = px.bar(
-        top_assets_df,
-        x='apy',
-        y='asset',
-        orientation='h',
-        title=f"Top Assets by APY ({top_assets_df['period'].iloc[0]})",
-        labels={'apy': 'APY (%)', 'asset': 'Asset'},
-        color='apy',
-        color_continuous_scale='RdYlGn',
-        hover_data=['current_value', 'return_pct']
-    )
-    
-    fig.update_layout(
-        height=600,
-        yaxis={'categoryorder': 'total ascending'},
-        showlegend=False
-    )
-    
-    return fig
-
-
 def create_protocol_allocation_chart(df):
     """Create protocol allocation pie chart"""
     latest_data = df[df['timestamp'] == df['timestamp'].max()]
@@ -399,39 +312,6 @@ def historical_analysis_page():
             st.plotly_chart(wallet_fig, use_container_width=True)
 
     st.markdown("---")
-
-    # Top Assets Performance
-    st.header("🚀 Top Assets Performance")
-    
-    performance_df = create_top_assets_by_apy(historical_df)
-    
-    if performance_df is not None and len(performance_df) > 0:
-        # APY chart
-        apy_fig = create_apy_comparison_chart(performance_df)
-        if apy_fig:
-            st.plotly_chart(apy_fig, use_container_width=True)
-        
-        # Performance summary table
-        st.subheader("📋 Asset Performance Summary")
-        
-        # Create summary by periods
-        period_tabs = st.tabs(["7 Days", "30 Days", "90 Days"])
-        
-        for i, (tab, period) in enumerate(zip(period_tabs, ['7d', '30d', '90d'])):
-            with tab:
-                period_data = performance_df[performance_df['period'] == period]
-                if len(period_data) > 0:
-                    summary_data = period_data.nlargest(20, 'apy')[['asset', 'apy', 'return_pct', 'current_value']].copy()
-                    summary_data['apy'] = summary_data['apy'].apply(lambda x: f"{x:+.2f}%")
-                    summary_data['return_pct'] = summary_data['return_pct'].apply(lambda x: f"{x:+.2f}%")
-                    summary_data['current_value'] = summary_data['current_value'].apply(lambda x: f"${x:,.2f}")
-                    summary_data.columns = ['Asset', 'APY', 'Return %', 'Current Value']
-                    
-                    st.dataframe(summary_data, use_container_width=True, hide_index=True)
-                else:
-                    st.info(f"No data available for {period} period")
-    else:
-        st.info("Insufficient data for APY analysis. Need at least 7 days of data.")
 
     # Summary Statistics
     st.markdown("---")
