@@ -4,6 +4,152 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, date
 from utils import load_and_process_data, load_historical_data
+import json
+import os
+import glob
+
+
+# Configuration Management Functions (imported from performance_analysis.py)
+def get_available_configs():
+    """Get list of available configuration files from config folder"""
+    config_folder = "config"
+    
+    # Create config folder if it doesn't exist
+    if not os.path.exists(config_folder):
+        os.makedirs(config_folder)
+        return []
+    
+    # Get all JSON files in config folder
+    json_files = glob.glob(os.path.join(config_folder, "*.json"))
+    
+    configs = []
+    for file_path in json_files:
+        try:
+            with open(file_path, 'r') as f:
+                config_data = json.load(f)
+                config_name = config_data.get('name', os.path.basename(file_path))
+                config_description = config_data.get('description', 'No description available')
+                
+                configs.append({
+                    'file_path': file_path,
+                    'file_name': os.path.basename(file_path),
+                    'display_name': config_name,
+                    'description': config_description,
+                    'data': config_data
+                })
+        except Exception as e:
+            st.warning(f"Error reading {file_path}: {e}")
+    
+    return configs
+
+
+def load_selected_config(selected_config_file):
+    """Load the selected configuration file"""
+    try:
+        config_folder = "config"
+        file_path = os.path.join(config_folder, selected_config_file)
+        
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                return json.load(f)
+        else:
+            return get_default_config()
+            
+    except Exception as e:
+        return get_default_config()
+
+
+def get_default_config():
+    """Return default empty configuration"""
+    return {
+        "name": "Default Configuration",
+        "description": "No combinations or renames applied",
+        "asset_combinations": {},
+        "asset_renames": {},
+        "protocol_combinations": {},
+        "protocol_renames": {}
+    }
+
+
+def create_config_management_ui():
+    """Create UI for managing configurations"""
+    # Get available configurations
+    available_configs = get_available_configs()
+    
+    if not available_configs:
+        st.info("📂 No configuration files found. Create .json files in the `config/` folder to enable asset grouping.")
+        return None
+    
+    # Configuration selector
+    config_options = {config['file_name']: config for config in available_configs}
+    
+    selected_file = st.selectbox(
+        "📋 Select Configuration for Asset Grouping",
+        options=['None'] + list(config_options.keys()),
+        format_func=lambda x: "No Grouping" if x == 'None' else f"{config_options[x]['display_name']} ({x})" if x != 'None' else x,
+        help="Choose which configuration to use for grouping tokens in charts",
+        key="portfolio_config_selector"
+    )
+    
+    if selected_file and selected_file != 'None':
+        selected_config = config_options[selected_file]
+        
+        # Show configuration details
+        with st.expander("👀 Configuration Preview", expanded=False):
+            config_data = selected_config['data']
+            st.markdown(f"**{selected_config['display_name']}**: {selected_config['description']}")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Asset Combinations:**")
+                asset_combinations = config_data.get('asset_combinations', {})
+                if asset_combinations:
+                    for group_name, assets in asset_combinations.items():
+                        st.write(f"• {group_name}: {', '.join(assets)}")
+                else:
+                    st.write("None")
+            
+            with col2:
+                st.markdown("**Asset Renames:**")
+                asset_renames = config_data.get('asset_renames', {})
+                if asset_renames:
+                    for old_name, new_name in asset_renames.items():
+                        st.write(f"• {old_name} → {new_name}")
+                else:
+                    st.write("None")
+        
+        return selected_file
+    
+    return None
+
+
+def apply_asset_combinations(df, config):
+    """Apply asset combinations and renames based on configuration"""
+    if not config:
+        return df, 'coin'
+    
+    df_processed = df.copy()
+    combinations = config.get('asset_combinations', {})
+    renames = config.get('asset_renames', {})
+    
+    # Initialize the combined column with original values
+    df_processed['combined_asset'] = df_processed['coin']
+    
+    # Apply combinations first (items in combinations will be grouped)
+    items_in_combinations = set()
+    for combined_name, items_to_combine in combinations.items():
+        for item in items_to_combine:
+            items_in_combinations.add(item)
+            # Replace individual items with combined name
+            df_processed.loc[df_processed['coin'] == item, 'combined_asset'] = combined_name
+    
+    # Apply renames to items NOT in combinations
+    for original_name, new_name in renames.items():
+        if original_name not in items_in_combinations:
+            df_processed.loc[df_processed['coin'] == original_name, 'combined_asset'] = new_name
+    
+    return df_processed, 'combined_asset'
 
 
 def filter_data_by_date(df, selected_date):
@@ -73,16 +219,23 @@ def create_overview_metrics(df):
         )
 
 
-def create_wallet_breakdown_chart(df):
-    """Create wallet breakdown pie chart"""
+def create_wallet_breakdown_chart(df, min_wallet_value=0):
+    """Create wallet breakdown pie chart with minimum value filter"""
     wallet_totals = df.groupby('wallet_label')['usd_value_numeric'].sum().reset_index()
+    
+    # Apply minimum value filter
+    wallet_totals = wallet_totals[wallet_totals['usd_value_numeric'] >= min_wallet_value]
     wallet_totals = wallet_totals.sort_values('usd_value_numeric', ascending=False)
+
+    if len(wallet_totals) == 0:
+        st.warning(f"No wallets found with value >= ${min_wallet_value:,.2f}")
+        return None
 
     fig = px.pie(
         wallet_totals,
         values='usd_value_numeric',
         names='wallet_label',
-        title="Portfolio Distribution by Wallet",
+        title=f"Portfolio Distribution by Wallet (Min: ${min_wallet_value:,.0f})",
         hover_data=['usd_value_numeric'],
         labels={'usd_value_numeric': 'USD Value'}
     )
@@ -119,20 +272,36 @@ def create_blockchain_breakdown_chart(df):
     return fig
 
 
-def create_top_holdings_chart(df, top_n=10):
-    """Create top holdings chart"""
-    token_totals = df.groupby(['coin', 'token_name'])['usd_value_numeric'].sum().reset_index()
-    token_totals = token_totals.sort_values('usd_value_numeric', ascending=False).head(top_n)
-
-    # Create display name combining symbol and name
-    token_totals['display_name'] = token_totals['coin'] + ' (' + token_totals['token_name'] + ')'
+def create_top_holdings_chart(df, config=None, top_n=10):
+    """Create top holdings chart with optional asset combinations"""
+    # Apply configuration if provided
+    if config:
+        df_processed, asset_col = apply_asset_combinations(df, config)
+        title_suffix = " (Grouped by Config)"
+    else:
+        df_processed = df.copy()
+        asset_col = 'coin'
+        title_suffix = ""
+    
+    # Group by the appropriate asset column
+    if asset_col == 'combined_asset':
+        # For combined assets, we need to aggregate across the combined groups
+        token_totals = df_processed.groupby('combined_asset')['usd_value_numeric'].sum().reset_index()
+        token_totals = token_totals.sort_values('usd_value_numeric', ascending=False).head(top_n)
+        token_totals['display_name'] = token_totals['combined_asset']
+    else:
+        # Original behavior for individual tokens
+        token_totals = df_processed.groupby(['coin', 'token_name'])['usd_value_numeric'].sum().reset_index()
+        token_totals = token_totals.sort_values('usd_value_numeric', ascending=False).head(top_n)
+        # Create display name combining symbol and name
+        token_totals['display_name'] = token_totals['coin'] + ' (' + token_totals['token_name'] + ')'
 
     fig = px.bar(
         token_totals,
         x='usd_value_numeric',
         y='display_name',
         orientation='h',
-        title=f"Top {top_n} Token Holdings by Value",
+        title=f"Top {top_n} Token Holdings by Value{title_suffix}",
         labels={'usd_value_numeric': 'USD Value', 'display_name': 'Token'},
         color='usd_value_numeric',
         color_continuous_scale='plasma'
@@ -163,25 +332,41 @@ def create_protocol_breakdown_chart(df):
     return fig
 
 
-def create_wallet_comparison_chart(df):
-    """Create wallet comparison chart showing top tokens per wallet"""
-    # Get top 5 tokens per wallet by value
+def create_wallet_comparison_chart(df, config=None):
+    """Create wallet comparison chart showing top tokens per wallet with optional grouping"""
+    # Apply configuration if provided
+    if config:
+        df_processed, asset_col = apply_asset_combinations(df, config)
+    else:
+        df_processed = df.copy()
+        asset_col = 'coin'
+    
+    # Get top 5 assets per wallet by value
     wallet_tokens = []
-    for wallet in df['wallet_label'].unique():
-        wallet_data = df[df['wallet_label'] == wallet]
-        top_tokens = wallet_data.groupby('coin')['usd_value_numeric'].sum().reset_index()
-        top_tokens = top_tokens.sort_values('usd_value_numeric', ascending=False).head(5)
+    for wallet in df_processed['wallet_label'].unique():
+        wallet_data = df_processed[df_processed['wallet_label'] == wallet]
+        
+        if asset_col == 'combined_asset':
+            top_tokens = wallet_data.groupby('combined_asset')['usd_value_numeric'].sum().reset_index()
+            top_tokens = top_tokens.sort_values('usd_value_numeric', ascending=False).head(5)
+            top_tokens['asset'] = top_tokens['combined_asset']
+        else:
+            top_tokens = wallet_data.groupby('coin')['usd_value_numeric'].sum().reset_index()
+            top_tokens = top_tokens.sort_values('usd_value_numeric', ascending=False).head(5)
+            top_tokens['asset'] = top_tokens['coin']
+        
         top_tokens['wallet_label'] = wallet
         wallet_tokens.append(top_tokens)
 
     combined_data = pd.concat(wallet_tokens, ignore_index=True)
 
+    title_suffix = " (Grouped by Config)" if config else ""
     fig = px.bar(
         combined_data,
         x='wallet_label',
         y='usd_value_numeric',
-        color='coin',
-        title="Top Token Holdings by Wallet",
+        color='asset',
+        title=f"Top Token Holdings by Wallet{title_suffix}",
         labels={'usd_value_numeric': 'USD Value', 'wallet_label': 'Wallet'},
         barmode='stack'
     )
@@ -258,11 +443,21 @@ def create_detailed_table(df):
 
 
 def current_portfolio_page():
-    """Current portfolio analysis page with date selection"""
+    """Current portfolio analysis page with date selection and configuration management"""
     st.title("💰 Crypto Portfolio Dashboard")
     st.markdown("---")
 
-    # Sidebar for date selection
+    # Configuration Management Section
+    with st.expander("⚙️ Asset Grouping Configuration", expanded=False):
+        selected_config_file = create_config_management_ui()
+        
+        # Load configuration
+        if selected_config_file:
+            config = load_selected_config(selected_config_file)
+        else:
+            config = None
+
+    # Sidebar for controls
     st.sidebar.header("📅 Date Selection")
     
     # Date picker with default to today
@@ -276,6 +471,17 @@ def current_portfolio_page():
     # Display selected date info
     st.sidebar.info(f"Selected Date: {selected_date.strftime('%B %d, %Y')}")
 
+    # Wallet filtering options
+    st.sidebar.header("💰 Wallet Filtering")
+    min_wallet_value = st.sidebar.number_input(
+        "Minimum Wallet Value ($)",
+        min_value=0,
+        value=0,
+        step=10,
+        help="Hide wallets with value below this amount",
+        key="min_wallet_value"
+    )
+
     # Load historical data using utils function
     with st.spinner(f"Loading portfolio data for {selected_date}..."):
         # Load all historical data using utils function
@@ -285,60 +491,73 @@ def current_portfolio_page():
         df = filter_data_by_date(full_df, selected_date) if full_df is not None else None
 
     if df is not None:
-            st.success(f"✅ Successfully loaded {len(df)} portfolio positions for {selected_date}")
+        st.success(f"✅ Successfully loaded {len(df)} portfolio positions for {selected_date}")
 
-            # Show data timestamp info
-            if 'timestamp' in df.columns:
-                latest_timestamp = df['timestamp'].max()
-                st.info(f"📊 Data timestamp: {latest_timestamp}")
+        # Show data timestamp info
+        if 'timestamp' in df.columns:
+            latest_timestamp = df['timestamp'].max()
+            st.info(f"📊 Data timestamp: {latest_timestamp}")
 
-            # Overview metrics
-            st.header("📊 Portfolio Overview")
-            create_overview_metrics(df)
-            st.markdown("---")
+        # Show configuration status
+        if config:
+            st.success(f"🔧 Using configuration: {config.get('name', 'Custom Config')}")
 
-            # Charts section
-            st.header("📈 Portfolio Analysis")
+        # Overview metrics
+        st.header("📊 Portfolio Overview")
+        create_overview_metrics(df)
+        st.markdown("---")
 
-            # Row 1: Wallet and Blockchain breakdown
-            col1, col2 = st.columns(2)
+        # Charts section
+        st.header("📈 Portfolio Analysis")
 
-            with col1:
-                wallet_fig = create_wallet_breakdown_chart(df)
+        # Row 1: Wallet and Blockchain breakdown
+        col1, col2 = st.columns(2)
+
+        with col1:
+            wallet_fig = create_wallet_breakdown_chart(df, min_wallet_value)
+            if wallet_fig:
                 st.plotly_chart(wallet_fig, use_container_width=True)
 
-            with col2:
-                blockchain_fig = create_blockchain_breakdown_chart(df)
-                st.plotly_chart(blockchain_fig, use_container_width=True)
+        with col2:
+            blockchain_fig = create_blockchain_breakdown_chart(df)
+            st.plotly_chart(blockchain_fig, use_container_width=True)
 
-            # Row 2: Top holdings and Protocol breakdown
-            col1, col2 = st.columns(2)
+        # Row 2: Top holdings and Protocol breakdown
+        col1, col2 = st.columns(2)
 
-            with col1:
-                holdings_fig = create_top_holdings_chart(df)
-                st.plotly_chart(holdings_fig, use_container_width=True)
+        with col1:
+            holdings_fig = create_top_holdings_chart(df, config)
+            st.plotly_chart(holdings_fig, use_container_width=True)
 
-            with col2:
-                protocol_fig = create_protocol_breakdown_chart(df)
-                st.plotly_chart(protocol_fig, use_container_width=True)
+        with col2:
+            protocol_fig = create_protocol_breakdown_chart(df)
+            st.plotly_chart(protocol_fig, use_container_width=True)
 
-            # Row 3: Wallet comparison
-            st.subheader("🔍 Wallet Comparison")
-            wallet_comparison_fig = create_wallet_comparison_chart(df)
-            st.plotly_chart(wallet_comparison_fig, use_container_width=True)
+        # Row 3: Wallet comparison
+        st.subheader("🔍 Wallet Comparison")
+        wallet_comparison_fig = create_wallet_comparison_chart(df, config)
+        st.plotly_chart(wallet_comparison_fig, use_container_width=True)
 
-            st.markdown("---")
+        st.markdown("---")
 
-            # Detailed table
-            create_detailed_table(df)
+        # Detailed table
+        create_detailed_table(df)
 
-            # Additional insights in sidebar
-            st.sidebar.markdown("---")
-            st.sidebar.header("📈 Quick Insights")
+        # Additional insights in sidebar
+        st.sidebar.markdown("---")
+        st.sidebar.header("📈 Quick Insights")
 
+        # Filter wallets for insights based on minimum value
+        insights_df = df.copy()
+        if min_wallet_value > 0:
+            wallet_values = insights_df.groupby('wallet_label')['usd_value_numeric'].sum()
+            valid_wallets = wallet_values[wallet_values >= min_wallet_value].index
+            insights_df = insights_df[insights_df['wallet_label'].isin(valid_wallets)]
+
+        if len(insights_df) > 0:
             # Top wallet by value
-            top_wallet = df.groupby('wallet_label')['usd_value_numeric'].sum().idxmax()
-            top_wallet_value = df.groupby('wallet_label')['usd_value_numeric'].sum().max()
+            top_wallet = insights_df.groupby('wallet_label')['usd_value_numeric'].sum().idxmax()
+            top_wallet_value = insights_df.groupby('wallet_label')['usd_value_numeric'].sum().max()
             st.sidebar.metric(
                 "Top Wallet",
                 top_wallet,
@@ -346,8 +565,8 @@ def current_portfolio_page():
             )
 
             # Most valuable token
-            top_token = df.groupby('coin')['usd_value_numeric'].sum().idxmax()
-            top_token_value = df.groupby('coin')['usd_value_numeric'].sum().max()
+            top_token = insights_df.groupby('coin')['usd_value_numeric'].sum().idxmax()
+            top_token_value = insights_df.groupby('coin')['usd_value_numeric'].sum().max()
             st.sidebar.metric(
                 "Top Token",
                 top_token,
@@ -355,28 +574,36 @@ def current_portfolio_page():
             )
 
             # Most used blockchain
-            top_blockchain = df.groupby('blockchain')['usd_value_numeric'].sum().idxmax()
-            top_blockchain_value = df.groupby('blockchain')['usd_value_numeric'].sum().max()
+            top_blockchain = insights_df.groupby('blockchain')['usd_value_numeric'].sum().idxmax()
+            top_blockchain_value = insights_df.groupby('blockchain')['usd_value_numeric'].sum().max()
             st.sidebar.metric(
                 "Top Blockchain",
                 top_blockchain,
                 f"${top_blockchain_value:,.2f}"
             )
+        else:
+            st.sidebar.warning("No wallets meet the minimum value criteria")
 
-            # Available date range info
-            st.sidebar.markdown("---")
-            st.sidebar.header("📊 Data Info")
-            st.sidebar.write(f"Records loaded: {len(df)}")
-            if 'timestamp' in df.columns:
-                st.sidebar.write(f"Latest update: {df['timestamp'].max()}")
-            
-            # Show available date range from full dataset
-            if full_df is not None and len(full_df) > 0:
-                min_date = full_df['timestamp'].min().date()
-                max_date = full_df['timestamp'].max().date()
-                available_dates = len(full_df['timestamp'].dt.date.unique())
-                st.sidebar.write(f"Available range: {min_date} to {max_date}")
-                st.sidebar.write(f"Total dates: {available_dates}")
+        # Available date range info
+        st.sidebar.markdown("---")
+        st.sidebar.header("📊 Data Info")
+        st.sidebar.write(f"Records loaded: {len(df)}")
+        if 'timestamp' in df.columns:
+            st.sidebar.write(f"Latest update: {df['timestamp'].max()}")
+        
+        # Show filtering effects
+        if min_wallet_value > 0:
+            filtered_wallets = len(insights_df['wallet_label'].unique())
+            total_wallets = len(df['wallet_label'].unique())
+            st.sidebar.write(f"Displayed wallets: {filtered_wallets}/{total_wallets}")
+        
+        # Show available date range from full dataset
+        if full_df is not None and len(full_df) > 0:
+            min_date = full_df['timestamp'].min().date()
+            max_date = full_df['timestamp'].max().date()
+            available_dates = len(full_df['timestamp'].dt.date.unique())
+            st.sidebar.write(f"Available range: {min_date} to {max_date}")
+            st.sidebar.write(f"Total dates: {available_dates}")
 
     else:
         st.warning(f"⚠️ No portfolio data found for {selected_date}")
