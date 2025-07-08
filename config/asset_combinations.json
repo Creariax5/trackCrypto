@@ -4,7 +4,8 @@
     "Stablecoins": ["USDC", "USDT", "DAI", "FRAX", "SILO", "NOTE"],
     "Ethereum Ecosystem": ["ETH", "WETH"],
     "Major Bitcoin": ["BTC", "WBTC", "BTCB", "cbBTC"],
-    "Sonic X Shadow": ["S", "wS", "SHADOW", "xSHADOW", "x33", "GEMS"]
+    "Sonic X Shadow": ["S", "wS", "SHADOW", "xSHADOW", "x33", "GEMS"],
+    "Shitcoins": ["SWOL", "BASED"]
   },
   "asset_renames": {
     "BTC": "Bitcoin",
