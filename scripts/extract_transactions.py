@@ -68,7 +68,7 @@ def extract_table_data(soup):
         token_img = asset_cell.find('img', class_='js-image-transaction-token')
         if token_img:
             tx_data['token_logo'] = token_img.get('data-js-img', '')
-            tx_data['token_symbol'] = token_img.get('data-tokenalt', '')
+            # Don't use truncated data-tokenalt, we'll get it from amount text
         
         # Token link for name
         token_link = asset_cell.find('a')
@@ -76,11 +76,14 @@ def extract_table_data(soup):
             tx_data['token_name'] = token_link.get('title', '')
             tx_data['token_address'] = token_link.get('href', '').split('/')[-1] if '/token/' in token_link.get('href', '') else ''
         
-        # Amount and USD value
+        # Amount and USD value - Extract token symbol from amount text
         amount_spans = asset_cell.find_all('span', class_='hash-tag')
         for span in amount_spans:
             span_title = span.get('title', span.text.strip())
-            if any(symbol in span_title for symbol in ['ETH', 'USDC', 'WETH', 'WGC', 'CBBTC']):
+            # Look for token symbols in the amount text
+            token_match = re.search(r'([A-Z]{2,10})\s*$', span_title)
+            if token_match:
+                tx_data['token_symbol'] = token_match.group(1)  # Extract full symbol
                 tx_data['amount_full'] = span_title
                 tx_data['amount_display'] = span.text.strip()
                 # Check if it's positive or negative
@@ -90,6 +93,7 @@ def extract_table_data(soup):
                     tx_data['amount_direction'] = 'negative'
                 else:
                     tx_data['amount_direction'] = 'neutral'
+                break
         
         # USD value
         usd_div = asset_cell.find('div', class_='small')
