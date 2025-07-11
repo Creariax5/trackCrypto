@@ -212,7 +212,12 @@ def process_transactions():
     # Process each HTML file
     for filename in os.listdir(source_dir):
         if filename.endswith('.html'):
-            wallet_address = filename.replace('.html', '')
+            # Extract wallet address handling numbered files
+            # 0x5a2ccb5b0a4dc5b7ca9c0768e6e2082be7bc6229.html -> 0x5a2ccb5b0a4dc5b7ca9c0768e6e2082be7bc6229
+            # 0x5a2ccb5b0a4dc5b7ca9c0768e6e2082be7bc6229.1.html -> 0x5a2ccb5b0a4dc5b7ca9c0768e6e2082be7bc6229
+            base_name = filename.replace('.html', '')
+            wallet_address = base_name.split('.')[0]  # Take first part before any dots
+            
             file_path = os.path.join(source_dir, filename)
             
             print(f"📄 Processing {filename}...")
