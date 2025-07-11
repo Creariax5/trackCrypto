@@ -1,0 +1,9 @@
+{
+  "wallets": {
+      "0x3656ff4c11c4c8b4b77402faab8b3387e36f2e77": "Old_Wallet",
+      "0x5a2ccb5b0a4dc5b7ca9c0768e6e2082be7bc6229": "Main_Wallet", 
+      "0x29ea4918b83223f1eec45f242d2d96a293b2fcf3": "Coinbase_Wallet",
+      "0x7ab7528984690d3d8066bac18f38133a0cfba053": "Sonic_Farm",
+      "0x2463cc0b87dfc7d563b5f4fee294c49fe0603c62": "ZYF_AI"
+  }
+}

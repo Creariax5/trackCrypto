@@ -12,7 +12,7 @@ import glob
 # Configuration Management Functions (imported from performance_analysis.py)
 def get_available_configs():
     """Get list of available configuration files from config folder"""
-    config_folder = "config"
+    config_folder = "config/streamlit"
     
     # Create config folder if it doesn't exist
     if not os.path.exists(config_folder):
@@ -46,7 +46,7 @@ def get_available_configs():
 def load_selected_config(selected_config_file):
     """Load the selected configuration file"""
     try:
-        config_folder = "config"
+        config_folder = "config/streamlit"
         file_path = os.path.join(config_folder, selected_config_file)
         
         if os.path.exists(file_path):
