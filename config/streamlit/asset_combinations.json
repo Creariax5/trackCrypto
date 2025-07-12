@@ -5,7 +5,7 @@
     "Ethereum Ecosystem": ["ETH", "WETH"],
     "Major Bitcoin": ["BTC", "WBTC", "BTCB", "cbBTC"],
     "Sonic X Shadow": ["S", "wS", "SHADOW", "xSHADOW", "x33", "GEMS"],
-    "Shitcoins": ["SWOL", "BASED"]
+    "Shitcoins": ["SWOL", "BASED", "RUGGIE", "ROME", "GOOFS", "WGC"]
   },
   "asset_renames": {
     "BTC": "Bitcoin",
