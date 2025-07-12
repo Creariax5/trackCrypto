@@ -19,6 +19,11 @@
       "address": "0x4abd9dad8651609fe7b832204fc3272dcce54994",
       "name": "Yannick", 
       "description": "Friend - treat as external"
+    },
+    "florian": {
+      "address": "0xea4142905e88fc2e63dc6a32db6007932255586b",
+      "name": "Florian", 
+      "description": "Friend - treat as external"
     }
   }
 }
