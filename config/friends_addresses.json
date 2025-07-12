@@ -14,6 +14,11 @@
       "address": "0x63BfFb83340Ca12e9233dEe581796Dc9666e83D3",
       "name": "Gab", 
       "description": "Friend - treat as external"
+    },
+    "yannick": {
+      "address": "0x4abd9dad8651609fe7b832204fc3272dcce54994",
+      "name": "Yannick", 
+      "description": "Friend - treat as external"
     }
   }
 }
