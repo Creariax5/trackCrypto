@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Final Simple Tracker - Auto-detects latest CSV file
+Fixed Simple Tracker - Auto-detects latest CSV file and exports external transactions
 """
 import pandas as pd
 import glob
 import os
 import re
 import json
+from datetime import datetime
 
 def load_friends_addresses():
     """Load friends addresses from JSON file"""
@@ -41,7 +42,7 @@ def find_latest_csv():
     return latest_file
 
 def simple_tracker():
-    print("🚀 FINAL SIMPLE TRACKER")
+    print("🚀 FIXED SIMPLE TRACKER")
     print("=" * 40)
     
     # Find the CSV file
@@ -54,6 +55,9 @@ def simple_tracker():
     # Load data
     df = pd.read_csv(csv_file)
     print(f"📊 Total transactions: {len(df)}")
+    
+    # Debug: Print column names to verify
+    print(f"🔍 Available columns: {list(df.columns)}")
     
     # Clean USD values
     def clean_usd(val):
@@ -118,6 +122,8 @@ def simple_tracker():
         
         exchange = None
         info_source = ""
+        info_text = ""
+        address_used = ""
         
         if direction == 'IN':
             # Check FROM fields for where money came from
@@ -126,7 +132,9 @@ def simple_tracker():
                 address = row.get('from_address', '')
                 exchange = find_exchange(info, address, direction)
                 if exchange:
-                    info_source = f"{field}: {info}"
+                    info_source = field
+                    info_text = str(info) if pd.notna(info) else ""
+                    address_used = str(address) if pd.notna(address) else ""
                     break
         
         elif direction == 'OUT':
@@ -136,7 +144,9 @@ def simple_tracker():
                 address = row.get('to_address', '')
                 exchange = find_exchange(info, address, direction)
                 if exchange:
-                    info_source = f"{field}: {info}"
+                    info_source = field
+                    info_text = str(info) if pd.notna(info) else ""
+                    address_used = str(address) if pd.notna(address) else ""
                     break
         
         if exchange:
@@ -145,13 +155,70 @@ def simple_tracker():
             else:
                 external_out += amount
             
+            # FIXED: Extract and clean token amount using correct column names
+            token_amount = ''
+            # Try amount_full first, then amount_display
+            for amt_col in ['amount_full', 'amount_display']:
+                if amt_col in row and pd.notna(row[amt_col]):
+                    try:
+                        # Clean token amount (remove any non-numeric characters except decimal point and minus)
+                        token_amount_clean = re.sub(r'[^\d.-]', '', str(row[amt_col]))
+                        token_amount = float(token_amount_clean) if token_amount_clean else ''
+                        break
+                    except:
+                        token_amount = str(row[amt_col])
+                        break
+            
+            # FIXED: Extract timestamp and date using correct column names
+            timestamp_val = row.get('timestamp_utc', '')  # Fixed: was 'timestamp'
+            
+            # Convert timestamp_utc to readable date if needed
+            date_val = ''
+            if pd.notna(timestamp_val) and timestamp_val != '':
+                try:
+                    # If it's already a formatted date string, use it
+                    if isinstance(timestamp_val, str) and any(x in timestamp_val for x in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                                                                                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']):
+                        date_val = timestamp_val
+                    else:
+                        # Try to parse as timestamp
+                        if str(timestamp_val).replace('.', '').isdigit():
+                            ts_num = float(timestamp_val)
+                            # Handle both seconds and milliseconds timestamps
+                            if ts_num > 1e12:  # milliseconds
+                                ts_num = ts_num / 1000
+                            date_val = datetime.fromtimestamp(ts_num).strftime('%Y-%m-%d %H:%M:%S')
+                        else:
+                            date_val = str(timestamp_val)
+                except Exception as e:
+                    print(f"⚠️  Could not parse timestamp {timestamp_val}: {e}")
+                    date_val = str(timestamp_val)
+            
+            # FIXED: Try to get block number from transaction hash or other fields
+            block_number = ''
+            # Check if there's a block-related field, or use transaction_hash as identifier
+            for block_field in ['block_number', 'json_hash', 'transaction_hash']:
+                if block_field in row and pd.notna(row[block_field]):
+                    block_number = str(row[block_field])
+                    break
+            
             external_details.append({
                 'direction': direction,
-                'amount': amount,
-                'token': row['token_symbol'],
-                'exchange': exchange,
-                'info': info_source,
-                'wallet': row['wallet_address']
+                'amount_usd': round(amount, 2),
+                'token_symbol': row.get('token_symbol', ''),
+                'token_amount': token_amount,  # Now properly extracted
+                'exchange_or_friend': exchange,
+                'info_source_field': info_source,
+                'info_text': info_text,
+                'address': address_used,
+                'wallet_address': row.get('wallet_address', ''),
+                'transaction_hash': row.get('transaction_hash', ''),
+                'block_number': block_number,  # Now properly extracted
+                'timestamp': timestamp_val,  # Now using timestamp_utc
+                'date': date_val,  # Now properly converted
+                'chain': row.get('chain', ''),  # Added chain info
+                'action': row.get('action', ''),  # Added action info
+                'original_row_index': row.name
             })
     
     # Show results
@@ -162,20 +229,57 @@ def simple_tracker():
     print(f"External OUT: ${external_out:>10,.2f}")
     print(f"NET:          ${net:>10,.2f}")
     
+    # Create DataFrame from external transactions
+    if external_details:
+        external_df = pd.DataFrame(external_details)
+        
+        # Generate output filename in processed folder
+        output_folder = './portfolio_data/transactions/processed/'
+        os.makedirs(output_folder, exist_ok=True)  # Ensure folder exists
+        output_file = os.path.join(output_folder, f"external_transactions.csv")
+        
+        # Save to CSV
+        external_df.to_csv(output_file, index=False)
+        print(f"\n💾 External transactions saved to: {output_file}")
+        print(f"📊 Total external transactions exported: {len(external_details)}")
+        
+        # Debug: Show sample of extracted data
+        print(f"\n🔍 SAMPLE EXTRACTED DATA:")
+        for i, tx in enumerate(external_details[:3]):  # Show first 3
+            print(f"Transaction {i+1}:")
+            print(f"  Token Amount: {tx['token_amount']}")
+            print(f"  Timestamp: {tx['timestamp']}")
+            print(f"  Date: {tx['date']}")
+            print(f"  Block: {tx['block_number']}")
+            print()
+        
+        # Show summary by exchange
+        print(f"\n🔍 SUMMARY BY EXCHANGE/FRIEND:")
+        by_exchange = external_df.groupby('exchange_or_friend').agg({
+            'amount_usd': ['sum', 'count'],
+            'direction': lambda x: f"IN: {sum(x=='IN')}, OUT: {sum(x=='OUT')}"
+        }).round(2)
+        
+        by_exchange.columns = ['total_usd', 'transaction_count', 'direction_breakdown']
+        print(by_exchange.to_string())
+        
+    else:
+        print("\n❌ No external transactions found to export")
+    
     # Show all external transactions
     print(f"\n🔍 ALL EXTERNAL TRANSACTIONS ({len(external_details)}):")
     
     # Group by exchange
     by_exchange = {}
     for tx in external_details:
-        exchange = tx['exchange']
+        exchange = tx['exchange_or_friend']
         if exchange not in by_exchange:
             by_exchange[exchange] = {'in': 0, 'out': 0, 'transactions': []}
         
         if tx['direction'] == 'IN':
-            by_exchange[exchange]['in'] += tx['amount']
+            by_exchange[exchange]['in'] += tx['amount_usd']
         else:
-            by_exchange[exchange]['out'] += tx['amount']
+            by_exchange[exchange]['out'] += tx['amount_usd']
         
         by_exchange[exchange]['transactions'].append(tx)
     
@@ -186,9 +290,12 @@ def simple_tracker():
         print(f"   OUT: ${data['out']:>10,.2f}")
         print(f"   NET: ${exchange_net:>10,.2f}")
         
-        # Show transactions
-        for tx in sorted(data['transactions'], key=lambda x: x['amount'], reverse=True):
-            print(f"     {tx['direction']}: ${tx['amount']:>8.2f} {tx['token']:<8}")
+        # Show top transactions
+        for tx in sorted(data['transactions'], key=lambda x: x['amount_usd'], reverse=True)[:5]:
+            print(f"     {tx['direction']}: ${tx['amount_usd']:>8.2f} {tx['token_symbol']:<8} ({tx['token_amount']})")
+        
+        if len(data['transactions']) > 5:
+            print(f"     ... and {len(data['transactions']) - 5} more transactions")
 
 def main():
     simple_tracker()
