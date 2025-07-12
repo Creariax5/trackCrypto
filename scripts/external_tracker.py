@@ -6,6 +6,25 @@ import pandas as pd
 import glob
 import os
 import re
+import json
+
+def load_friends_addresses():
+    """Load friends addresses from JSON file"""
+    try:
+        with open('./config/friends_addresses.json', 'r') as f:
+            data = json.load(f)
+            friends_map = {}
+            for friend_id, info in data.get('friends', {}).items():
+                address = info.get('address', '').lower()
+                name = info.get('name', friend_id)
+                friends_map[address] = name
+            return friends_map
+    except FileNotFoundError:
+        print("ℹ️  No friends_addresses.json found")
+        return {}
+    except Exception as e:
+        print(f"⚠️  Error loading friends addresses: {e}")
+        return {}
 
 def find_latest_csv():
     """Find the latest CSV file with historical data"""
@@ -56,12 +75,23 @@ def simple_tracker():
     df_value = df[(df['usd'] > 0) & (df['dir'].notna())].copy()
     print(f"📊 With USD value: {len(df_value)}")
     
+    # Load friends addresses
+    friends_map = load_friends_addresses()
+    print(f"👥 Loaded {len(friends_map)} friend addresses")
+    
     # Find external transactions with BETTER patterns
-    def find_exchange(text, direction):
+    def find_exchange(text, address, direction):
         if pd.isna(text):
-            return None
+            text = ""
+        else:
+            text = str(text).lower()
         
-        text = str(text).lower()
+        # Check if it's a friend's address
+        if pd.notna(address):
+            address_clean = str(address).lower()
+            if address_clean in friends_map:
+                friend_name = friends_map[address_clean]
+                return f"friend_{friend_name.lower()}"
         
         # EXCLUDE fees and proxy wallets
         if 'fees' in text or 'fee' in text or 'proxy' in text or 'flash' in text:
@@ -93,7 +123,8 @@ def simple_tracker():
             # Check FROM fields for where money came from
             for field in ['from_info', 'json_from_info']:
                 info = row.get(field, '')
-                exchange = find_exchange(info, direction)
+                address = row.get('from_address', '')
+                exchange = find_exchange(info, address, direction)
                 if exchange:
                     info_source = f"{field}: {info}"
                     break
@@ -102,7 +133,8 @@ def simple_tracker():
             # Check TO fields for where money went
             for field in ['to_info', 'json_to_info']:
                 info = row.get(field, '')
-                exchange = find_exchange(info, direction)
+                address = row.get('to_address', '')
+                exchange = find_exchange(info, address, direction)
                 if exchange:
                     info_source = f"{field}: {info}"
                     break
@@ -129,10 +161,6 @@ def simple_tracker():
     print(f"External IN:  ${external_in:>10,.2f}")
     print(f"External OUT: ${external_out:>10,.2f}")
     print(f"NET:          ${net:>10,.2f}")
-    
-    print(f"\n✅ TARGET: $2,100 - $2,400")
-    success = 2000 <= net <= 2500
-    print(f"STATUS: {'🎉 SUCCESS!' if success else '⚠️ Still missing money'}")
     
     # Show all external transactions
     print(f"\n🔍 ALL EXTERNAL TRANSACTIONS ({len(external_details)}):")
@@ -161,41 +189,6 @@ def simple_tracker():
         # Show transactions
         for tx in sorted(data['transactions'], key=lambda x: x['amount'], reverse=True):
             print(f"     {tx['direction']}: ${tx['amount']:>8.2f} {tx['token']:<8}")
-    
-    # If not successful, show debug info
-    if not success:
-        print(f"\n🔍 MISSING MONEY ANALYSIS:")
-        missing = 2200 - net
-        print(f"Missing: ~${missing:,.2f}")
-        
-        # Look for large inflows without exchange labels
-        print(f"\n💰 LARGE INFLOWS (>$100) WITHOUT EXCHANGE LABELS:")
-        large_inflows = df_value[(df_value['dir'] == 'IN') & (df_value['usd'] > 100)].copy()
-        large_inflows = large_inflows.sort_values('usd', ascending=False)
-        
-        found_unlabeled = 0
-        for _, row in large_inflows.head(20).iterrows():
-            # Check if this already has exchange label
-            has_exchange = False
-            for field in ['from_info', 'json_from_info']:
-                info = row.get(field, '')
-                if find_exchange(info, 'IN'):
-                    has_exchange = True
-                    break
-            
-            if not has_exchange:
-                amount = row['usd']
-                token = row['token_symbol']
-                from_info = row.get('from_info', '')
-                json_from_info = row.get('json_from_info', '')
-                
-                print(f"   ${amount:>8.2f} {token:<8} | from_info: {from_info} | json_from_info: {json_from_info}")
-                found_unlabeled += amount
-        
-        print(f"\nUnlabeled large inflows: ${found_unlabeled:,.2f}")
-        if found_unlabeled > missing * 0.8:
-            print(f"💡 Most missing money is in unlabeled large inflows!")
-            print(f"💡 Need to improve exchange pattern detection")
 
 def main():
     simple_tracker()

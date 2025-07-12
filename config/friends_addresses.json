@@ -1,0 +1,19 @@
+{
+  "friends": {
+    "james": {
+      "address": "0xec987af195b6c57f662b34e3004009f82f019761",
+      "name": "James",
+      "description": "Friend - treat as external"
+    },
+    "aryan": {
+      "address": "0xe91eF7B19d869119bfE43734e8F8F390B54F85dc",
+      "name": "Aryan", 
+      "description": "Friend - treat as external"
+    },
+    "gab": {
+      "address": "0x63BfFb83340Ca12e9233dEe581796Dc9666e83D3",
+      "name": "Gab", 
+      "description": "Friend - treat as external"
+    }
+  }
+}
