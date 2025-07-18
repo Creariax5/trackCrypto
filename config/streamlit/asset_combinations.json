@@ -3,7 +3,7 @@
   "asset_combinations": {
     "Stablecoins": ["USDC", "USDT", "DAI", "FRAX", "SILO", "NOTE"],
     "Ethereum Ecosystem": ["ETH", "WETH"],
-    "Major Bitcoin": ["BTC", "WBTC", "BTCB", "cbBTC"],
+    "Major Bitcoin": ["BTC", "WBTC", "BTCB", "cbBTC", "LBTC"],
     "Sonic X Shadow": ["S", "wS", "SHADOW", "xSHADOW", "x33", "GEMS"],
     "Shitcoins": ["SWOL", "BASED", "RUGGIE", "ROME", "GOOFS", "WGC"]
   },
