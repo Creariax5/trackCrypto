@@ -1,11 +1,41 @@
 {
   "name": "Base",
   "asset_combinations": {
-    "Stablecoins": ["USDC", "USDT", "DAI", "FRAX", "SILO", "NOTE"],
-    "Ethereum Ecosystem": ["ETH", "WETH"],
-    "Major Bitcoin": ["BTC", "WBTC", "BTCB", "cbBTC", "LBTC"],
-    "Sonic X Shadow": ["S", "wS", "SHADOW", "xSHADOW", "x33", "GEMS"],
-    "Shitcoins": ["SWOL", "BASED", "RUGGIE", "ROME", "GOOFS", "WGC"]
+    "Stablecoins": [
+      "USDC",
+      "USDT",
+      "DAI",
+      "FRAX",
+      "SILO",
+      "NOTE"
+    ],
+    "Ethereum Ecosystem": [
+      "ETH",
+      "WETH"
+    ],
+    "Major Bitcoin": [
+      "BTC",
+      "WBTC",
+      "BTCB",
+      "cbBTC",
+      "LBTC"
+    ],
+    "Sonic X Shadow": [
+      "S",
+      "wS",
+      "SHADOW",
+      "xSHADOW",
+      "x33",
+      "GEMS"
+    ],
+    "Shitcoins": [
+      "SWOL",
+      "BASED",
+      "RUGGIE",
+      "ROME",
+      "GOOFS",
+      "WGC"
+    ]
   },
   "asset_renames": {
     "BTC": "Bitcoin",
@@ -14,8 +44,14 @@
     "WETH": "Wrapped Ethereum"
   },
   "protocol_combinations": {
-    "Silo Combined": ["SILO | Silo (Rewards)", "USDC | Silo (Yield)"],
-    "Notional Combined": ["NOTE | Notional (Lending)", "USDC | Notional (Lending)"]
+    "Silo Combined": [
+      "SILO | Silo (Rewards)",
+      "USDC | Silo (Yield)"
+    ],
+    "Notional Combined": [
+      "NOTE | Notional (Lending)",
+      "USDC | Notional (Lending)"
+    ]
   },
   "protocol_renames": {
     "USDC | Compound V3": "Compound USDC Lending",

@@ -7,27 +7,27 @@
     },
     "aryan": {
       "address": "0xe91eF7B19d869119bfE43734e8F8F390B54F85dc",
-      "name": "Aryan", 
+      "name": "Aryan",
       "description": "Friend - treat as external"
     },
     "gab": {
       "address": "0x63BfFb83340Ca12e9233dEe581796Dc9666e83D3",
-      "name": "Gab", 
+      "name": "Gab",
       "description": "Friend - treat as external"
     },
     "yannick": {
       "address": "0x4abd9dad8651609fe7b832204fc3272dcce54994",
-      "name": "Yannick", 
+      "name": "Yannick",
       "description": "Friend - treat as external"
     },
     "florian": {
       "address": "0xea4142905e88fc2e63dc6a32db6007932255586b",
-      "name": "Florian", 
+      "name": "Florian",
       "description": "Friend - treat as external"
     },
     "tommas": {
       "address": "0xd77016651650cd3c45866bb5713839ecd6e6e93f",
-      "name": "Thomas", 
+      "name": "Thomas",
       "description": "Thomas EPITECH - buyed for Enzo"
     }
   }

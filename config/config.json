@@ -1,0 +1,162 @@
+{
+  "version": "2.0",
+  "created": "2025-07-19T09:09:01.628922",
+  "wallets": {
+    "0x3656ff4c11c4c8b4b77402faab8b3387e36f2e77": "Old_Wallet",
+    "0x5a2ccb5b0a4dc5b7ca9c0768e6e2082be7bc6229": "Main_Wallet",
+    "0x29ea4918b83223f1eec45f242d2d96a293b2fcf3": "Coinbase_Wallet",
+    "0x7ab7528984690d3d8066bac18f38133a0cfba053": "Sonic_Farm",
+    "0x2463cc0b87dfc7d563b5f4fee294c49fe0603c62": "ZYF_AI"
+  },
+  "friends": {
+    "james": {
+      "address": "0xec987af195b6c57f662b34e3004009f82f019761",
+      "name": "James",
+      "description": "Friend - treat as external"
+    },
+    "aryan": {
+      "address": "0xe91eF7B19d869119bfE43734e8F8F390B54F85dc",
+      "name": "Aryan",
+      "description": "Friend - treat as external"
+    },
+    "gab": {
+      "address": "0x63BfFb83340Ca12e9233dEe581796Dc9666e83D3",
+      "name": "Gab",
+      "description": "Friend - treat as external"
+    },
+    "yannick": {
+      "address": "0x4abd9dad8651609fe7b832204fc3272dcce54994",
+      "name": "Yannick",
+      "description": "Friend - treat as external"
+    },
+    "florian": {
+      "address": "0xea4142905e88fc2e63dc6a32db6007932255586b",
+      "name": "Florian",
+      "description": "Friend - treat as external"
+    },
+    "tommas": {
+      "address": "0xd77016651650cd3c45866bb5713839ecd6e6e93f",
+      "name": "Thomas",
+      "description": "Thomas EPITECH - buyed for Enzo"
+    }
+  },
+  "asset_groups": [
+    {
+      "name": "Base",
+      "asset_combinations": {
+        "Stablecoins": [
+          "USDC",
+          "USDT",
+          "DAI",
+          "FRAX",
+          "SILO",
+          "NOTE"
+        ],
+        "Ethereum Ecosystem": [
+          "ETH",
+          "WETH"
+        ],
+        "Major Bitcoin": [
+          "BTC",
+          "WBTC",
+          "BTCB",
+          "cbBTC",
+          "LBTC"
+        ],
+        "Sonic X Shadow": [
+          "S",
+          "wS",
+          "SHADOW",
+          "xSHADOW",
+          "x33",
+          "GEMS"
+        ],
+        "Shitcoins": [
+          "SWOL",
+          "BASED",
+          "RUGGIE",
+          "ROME",
+          "GOOFS",
+          "WGC"
+        ]
+      },
+      "asset_renames": {
+        "BTC": "Bitcoin",
+        "ETH": "Ethereum",
+        "WBTC": "Wrapped Bitcoin",
+        "WETH": "Wrapped Ethereum"
+      },
+      "protocol_combinations": {
+        "Silo Combined": [
+          "SILO | Silo (Rewards)",
+          "USDC | Silo (Yield)"
+        ],
+        "Notional Combined": [
+          "NOTE | Notional (Lending)",
+          "USDC | Notional (Lending)"
+        ]
+      },
+      "protocol_renames": {
+        "USDC | Compound V3": "Compound USDC Lending",
+        "ETH | Aave V3": "Aave ETH Deposit",
+        "BTC | Lightning": "Lightning BTC"
+      },
+      "_source_file": "asset_combinations.json",
+      "_loaded_from_legacy": true
+    },
+    {
+      "name": "My Custom Config",
+      "description": "Groups Silo positions together",
+      "protocol_combinations": {
+        "Silo Combined": [
+          "SILO | Silo (Rewards)",
+          "USDC | Silo (Yield)"
+        ],
+        "Notional Combined": [
+          "NOTE | Notional (Lending)",
+          "USDC | Notional (Lending)"
+        ]
+      },
+      "_source_file": "custom.json",
+      "_loaded_from_legacy": true
+    }
+  ],
+  "filters": {
+    "min_value": 1.0,
+    "min_wallet_value": 10.0,
+    "hide_dust": true,
+    "show_wallet_holdings": true,
+    "show_new_positions_only": false,
+    "min_pnl_filter": 0.0
+  },
+  "ui_settings": {
+    "theme": "light",
+    "charts": {
+      "default_top_n": 10,
+      "color_scheme": "viridis",
+      "show_legends": true
+    },
+    "tables": {
+      "items_per_page": 25,
+      "show_index": false
+    },
+    "sidebar": {
+      "expanded": true,
+      "show_advanced_filters": false
+    }
+  },
+  "data_settings": {
+    "update_frequency": "daily",
+    "price_api": {
+      "source": "coingecko",
+      "cache_duration_hours": 24,
+      "rate_limit_per_minute": 45
+    },
+    "pnl_calculation": {
+      "enabled": true,
+      "track_new_positions": true,
+      "min_position_value": 0.01
+    }
+  },
+  "last_modified": "2025-07-19T09:09:01.644039"
+}
