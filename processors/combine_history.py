@@ -3,7 +3,12 @@ import csv
 import glob
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from get_multi_wallet import main as get_multi_wallet
+from collectors.get_multi_wallet import main as get_multi_wallet
+
+# Add project root to Python path
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def find_combined_files():
     """Find all combined CSV files"""

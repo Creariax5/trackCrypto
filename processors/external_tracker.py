@@ -9,6 +9,11 @@ import re
 import json
 from datetime import datetime
 
+# Add project root to Python path
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 def load_friends_addresses():
     """Load friends addresses from JSON file"""
     try:

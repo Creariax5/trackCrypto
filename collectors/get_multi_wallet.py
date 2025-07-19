@@ -5,7 +5,7 @@ from datetime import datetime
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from get_wallet import fetch_wallet_data, process_data
+from collectors.get_wallet import fetch_wallet_data, process_data
 
 def load_wallets():
     with open('./config/wallets.json', 'r') as f:
