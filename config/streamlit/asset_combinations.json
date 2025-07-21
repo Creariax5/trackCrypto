@@ -7,7 +7,8 @@
       "DAI",
       "FRAX",
       "SILO",
-      "NOTE"
+      "NOTE",
+      "HONEY"
     ],
     "Ethereum Ecosystem": [
       "ETH",
@@ -34,7 +35,9 @@
       "RUGGIE",
       "ROME",
       "GOOFS",
-      "WGC"
+      "WGC",
+      "SALUKI",
+      "HAIR"
     ]
   },
   "asset_renames": {
