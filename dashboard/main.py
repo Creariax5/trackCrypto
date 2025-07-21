@@ -41,9 +41,7 @@ def main_navigation():
     if page == "📊 Current Portfolio":
         current_portfolio_page()
     elif page == "📈 Historical Analysis":
-        # Would use standard template here too
-        st.title("📈 Historical Analysis")
-        st.info("This page would also use StandardPageTemplate for consistency")
+        historical_analysis_page()
     elif page == "🎯 Performance Analysis":
         performance_analysis_page()
     elif page == "💰 Earnings Analysis":
